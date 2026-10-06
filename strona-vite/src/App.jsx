@@ -1,26 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "./lib/supabaseClient";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
 
-function App() {
-  const [message, setMessage] = useState("");
-
-  async function getMessage() {
-    const response = await fetch("/api/hello.php");
-    const data = await response.json();
-
-    setMessage(data.message);
-  }
-
+const App = () => {
   return (
     <div>
-      <h1>My Website</h1>
-
-      <button onClick={getMessage}>
-        Talk to PHP
-      </button>
-
-      <p>{message}</p>
+      <Header />
+      <p>App component</p>
+      <Footer />
     </div>
-  );
+  )
 }
 
 export default App;
