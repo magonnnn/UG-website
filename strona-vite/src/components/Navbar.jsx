@@ -45,15 +45,14 @@ const Navbar = () => {
         || "Zalogowany użytkownik";
 
     return (
-        <nav className="bg-gray-800 text-white py-4">
+        <nav className="bg-bg text-white py-4">
             <div className="container mx-auto px-4">
                 <div className="flex justify-between items-center">
-                    <img src={logo} alt="Logo" className="h-8 w-8 mr-2" />
-                    <div className="text-xl font-bold">PODZIEMIE CS2</div>
+                    <img src={logo} alt="Logo" className="h-18 w-18 mr-2 rounded-full" />
                     <div className="space-x-4">
-                        <a href="/" className="hover:text-gray-300">Home</a>
-                        <a href="/about" className="hover:text-gray-300">Ranking</a>
-                        <a href="/contact" className="hover:text-gray-300">Kontakt</a>
+                        <a href="/" className="hover:text-gray-300 bg-bg-light p-2 rounded-md">Home</a>
+                        <a href="/about" className="hover:text-gray-300 bg-bg-light p-2 rounded-md">Ranking</a>
+                        <a href="/contact" className="hover:text-gray-300 bg-bg-light p-2 rounded-md">Kontakt</a>
                     </div>
                     {user && (
                         <div className="text-right flex items-center flex-row">
@@ -64,7 +63,7 @@ const Navbar = () => {
                         </div>
                     )}
                     <button
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+                        className="bg-primary hover:bg-bg-dark text-white font-bold py-2 px-4 rounded disabled:opacity-50"
                         onClick={user ? logout : login}
                         disabled={!authReady}
                     >
