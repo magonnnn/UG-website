@@ -7,6 +7,9 @@ import Home from "./pages/Home";
 import Ranking from "./pages/Ranking";
 import Contact from "./pages/Contact";
 import Team from "./pages/Team";
+import TeamPanel from "./pages/TeamPanel";
+import Player from "./pages/Player"
+import Players from "./pages/Players"
 
 const App = () => {
   return (
@@ -16,9 +19,12 @@ const App = () => {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/about" element={<Ranking />} />
+            <Route path="/ranking" element={<Ranking />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/team" element={<Team />} />
+            <Route path="/team-panel" element={<TeamPanel />} />
+            <Route path="/player" element={<Player />} />
+            <Route path="/players" element={<Players />} />
           </Routes>
         </main>
         <Footer />

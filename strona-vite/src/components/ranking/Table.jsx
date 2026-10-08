@@ -24,14 +24,7 @@ const Table = () => {
     }, []);
 
     return (
-        <table className="table-auto w-full border-separate border-spacing-y-4 px-4 border-spacing-x-3">
-            <thead>
-                <tr>
-                    <th className="text-white text-start bg-bg rounded-lg p-6">Team Name</th>
-                    <th className="text-white text-start bg-bg rounded-lg p-6">Roster</th>
-                    <th className="text-white bg-bg rounded-lg p-6">Ranking</th>
-                </tr>
-            </thead>
+        <table className="table-auto w-full border-separate border-spacing-y-4 px-4">
             <tbody>
                 {loading && (<tr>
                     <td colSpan="2">Loading teams...</td>
@@ -47,7 +40,15 @@ const Table = () => {
                 )}
                 {!loading && !error && teams.map((team) => (
 
-                    <Row key={team.id} team={team.name} ranking={team.ranking} roster={team.roster} />
+                    <Row
+                        key={team.id}
+                        team={team.name}
+                        ranking={team.ranking}
+                        roster={team.roster}
+                        logo={team.logo
+                            ? supabase.storage.from("logos").getPublicUrl(team.logo).data.publicUrl
+                            : null}
+                    />
                 ))}
             </tbody>
         </table>
