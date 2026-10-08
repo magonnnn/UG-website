@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
-import { supabase } from "./lib/supabaseClient";
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import AdminRoute from "./components/AdminRoute";
 import Home from "./pages/Home";
 import Ranking from "./pages/Ranking";
 import Contact from "./pages/Contact";
 import Team from "./pages/Team";
-import TeamPanel from "./pages/TeamPanel";
+import AdminPanel from "./pages/AdminPanel";
 import Player from "./pages/Player"
 import Players from "./pages/Players"
 
@@ -22,7 +21,14 @@ const App = () => {
             <Route path="/ranking" element={<Ranking />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/team" element={<Team />} />
-            <Route path="/team-panel" element={<TeamPanel />} />
+            <Route
+              path="/admin-panel"
+              element={
+                <AdminRoute>
+                  <AdminPanel />
+                </AdminRoute>
+              }
+            />
             <Route path="/player" element={<Player />} />
             <Route path="/players" element={<Players />} />
           </Routes>

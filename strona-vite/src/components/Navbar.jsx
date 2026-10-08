@@ -175,28 +175,28 @@ const Navbar = () => {
                     <div className="flex items-center gap-2">
                         <Link
                             to="/"
-                            className="bg-bg-light hover:text-gray-300 p-2 rounded-md"
+                            className="hover:text-gray-300 p-2 rounded-md"
                         >
                             Home
                         </Link>
 
                         <Link
                             to="/ranking"
-                            className="bg-bg-light hover:text-gray-300 p-2 rounded-md"
+                            className="hover:text-gray-300 p-2 rounded-md"
                         >
                             Ranking
                         </Link>
 
                         <Link
                             to="/players"
-                            className="bg-bg-light hover:text-gray-300 p-2 rounded-md"
+                            className="hover:text-gray-300 p-2 rounded-md"
                         >
                             Gracze
                         </Link>
 
                         <Link
                             to="/contact"
-                            className="bg-bg-light hover:text-gray-300 p-2 rounded-md"
+                            className="hover:text-gray-300 p-2 rounded-md"
                         >
                             Kontakt
                         </Link>
@@ -228,13 +228,16 @@ const Navbar = () => {
                         </div>
                     )}
 
-                    {profile?.role === "captain" && (
-                        <Link
-                            to="/team-panel"
-                            className="bg-secondary hover:bg-bg-dark text-white font-bold py-2 px-4 rounded shrink-0"
-                        >
-                            Panel Kapitana
-                        </Link>
+                    {profile?.role === "admin" && (
+                        <div>
+                            <div className="rounded-full bg-green-600"></div>
+                            <Link
+                                to="/admin-panel"
+                                className="inline-block bg-secondary hover:scale-95 cursor-pointer transition-transform duration-200 text-white font-bold py-2 px-4 rounded shrink-0"
+                            >
+                                Panel Admina
+                            </Link>
+                        </div>
                     )}
 
                     <button
