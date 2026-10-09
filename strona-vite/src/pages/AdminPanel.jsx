@@ -12,6 +12,15 @@ const AdminPanel = () => {
         player4: "",
         player5: ""
     })
+    const [newPlayers, setNewPlayers] = useState({
+        teamName: "",
+        player1: "",
+        player2: "",
+        player3: "",
+        player4: "",
+        player5: ""
+    })
+    const [newTeamName, setNewTeamName] = useState("")
     const [selectedTeam, setSelectedTeam] = useState("")
 
     useEffect(() => {
@@ -80,6 +89,32 @@ const AdminPanel = () => {
         setSendStatus(true)
     }
 
+const addTeam = async (event) => {
+  event.preventDefault();
+
+  const roster = [
+    newPlayers.player1,
+    newPlayers.player2,
+    newPlayers.player3,
+    newPlayers.player4,
+    newPlayers.player5,
+  ].filter(Boolean);
+
+  const { error } = await supabase
+    .from("teams")
+    .insert([
+      {
+        name: newTeamName.trim(),
+        ranking: 3,
+        roster,
+      },
+    ]);
+
+  if (error) {
+    console.error("Error inserting team:", error.message);
+  }
+};
+
     return (
         <div className="mx-4">
             <h1 className="text-2xl font-bold text-white mt-4">
@@ -131,6 +166,40 @@ const AdminPanel = () => {
             <h1 className="text-2xl font-bold text-white">
                 Dodanie drużyny
             </h1>
+            <form className ="grid grid-cols-5 gap-2" onSubmit={addTeam}>
+                    <input type="text" name="teamName" onChange={(event) => setNewTeamName(event.target.value)}/>
+                    <input
+                    type="text"
+                    onChange={(event) =>
+                        setNewPlayers((prev) => ({ ...prev, player1: event.target.value }))
+                    }
+                    />
+                    <input
+                    type="text"
+                    onChange={(event) =>
+                        setNewPlayers((prev) => ({ ...prev, player2: event.target.value }))
+                    }
+                    />
+                    <input
+                    type="text"
+                    onChange={(event) =>
+                        setNewPlayers((prev) => ({ ...prev, player3: event.target.value }))
+                    }
+                    />
+                    <input
+                    type="text"
+                    onChange={(event) =>
+                        setNewPlayers((prev) => ({ ...prev, player4: event.target.value }))
+                    }
+                    />
+                    <input
+                    type="text"
+                    onChange={(event) =>
+                        setNewPlayers((prev) => ({ ...prev, player5: event.target.value }))
+                    }
+                    />
+                    <button type="submit" className="hover:scale-95 transition-transform hover:cursor-pointer bg-primary p-2 rounded-md text-bold text-white">Dodaj drużynę</button>
+            </form>
         </div>
     );
 };
