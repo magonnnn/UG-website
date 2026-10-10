@@ -1,128 +1,277 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
+const emptyRoster = {
+    player1: "",
+    player2: "",
+    player3: "",
+    player4: "",
+    player5: "",
+};
+
+const emptyNewPlayers = {
+    ...emptyRoster,
+};
+
 const AdminPanel = () => {
-    const [sendStatus, setSendStatus] = useState(false)
     const [teams, setTeams] = useState([]);
-    const [roster, setRoster] = useState([]);
-    const [rosterInputs, setRosterInputs] = useState({
-        player1: "",
-        player2: "",
-        player3: "",
-        player4: "",
-        player5: ""
-    })
-    const [newPlayers, setNewPlayers] = useState({
-        teamName: "",
-        player1: "",
-        player2: "",
-        player3: "",
-        player4: "",
-        player5: ""
-    })
-    const [newTeamName, setNewTeamName] = useState("")
-    const [selectedTeam, setSelectedTeam] = useState("")
+    const [rosterInputs, setRosterInputs] = useState(emptyRoster);
+    const [newPlayers, setNewPlayers] = useState(emptyNewPlayers);
 
-    useEffect(() => {
-        async function fetchTeams() {
-            const { data, error } = await supabase
-                .from("teams")
-                .select("*")
-                .order("ranking", { ascending: true });
+    const [newTeamName, setNewTeamName] = useState("");
+    const [selectedTeam, setSelectedTeam] = useState("");
+    const [updatedName, setUpdatedName] = useState("");
 
-            if (error) {
-                console.error("Error loading teams:", error.message);
-            } else {
-                setTeams(data ?? []);
-            }
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState("");
+    const [messageType, setMessageType] = useState("");
+
+    const loadTeams = useCallback(async () => {
+        const { data, error } = await supabase
+            .from("teams")
+            .select("*")
+            .order("ranking", { ascending: true });
+
+        if (error) {
+            console.error("Error loading teams:", error.message);
+            setMessage(`Błąd ładowania drużyn: ${error.message}`);
+            setMessageType("error");
+            return false;
         }
 
-        fetchTeams();
+        setTeams(data ?? []);
+        return true;
     }, []);
 
-    const changePlayers = (event) => {
-        setSendStatus(false)
-        const selectedTeam2 = teams.find(
-            (team) => team.name === event.target.value
-        );
+    useEffect(() => {
+        loadTeams();
+    }, [loadTeams]);
 
-        setSelectedTeam(selectedTeam2?.name ?? "");
-
-        const newRoster = selectedTeam2?.roster ?? [];
-
-        setRoster(newRoster);
-
-        setRosterInputs({
-            player1: newRoster[0] ?? "",
-            player2: newRoster[1] ?? "",
-            player3: newRoster[2] ?? "",
-            player4: newRoster[3] ?? "",
-            player5: newRoster[4] ?? ""
-        });
+    const showMessage = (text, type) => {
+        setMessage(text);
+        setMessageType(type);
     };
 
-    const handlePlayerInputChange = (event, i) => {
+    const resetEditor = () => {
+        setSelectedTeam("");
+        setUpdatedName("");
+        setRosterInputs({ ...emptyRoster });
+    };
+
+    const changePlayers = (event) => {
+        const teamName = event.target.value;
+        const team = teams.find((item) => item.name === teamName);
+
+        setSelectedTeam(team?.name ?? "");
+        setUpdatedName(team?.name ?? "");
+
+        const roster = team?.roster ?? [];
+
         setRosterInputs({
-            ...rosterInputs,
-            [`player${i + 1}`]: event.target.value
+            player1: roster[0] ?? "",
+            player2: roster[1] ?? "",
+            player3: roster[2] ?? "",
+            player4: roster[3] ?? "",
+            player5: roster[4] ?? "",
         });
+
+        setMessage("");
+    };
+
+    const handlePlayerInputChange = (event, index) => {
+        const key = `player${index + 1}`;
+
+        setRosterInputs((prev) => ({
+            ...prev,
+            [key]: event.target.value,
+        }));
+    };
+
+    const handleNewPlayerChange = (event, index) => {
+        const key = `player${index + 1}`;
+
+        setNewPlayers((prev) => ({
+            ...prev,
+            [key]: event.target.value,
+        }));
     };
 
     const updateDatabase = async (event) => {
         event.preventDefault();
 
-        const sendRoster = Object.values(rosterInputs)
+        if (!selectedTeam) {
+            showMessage("Najpierw wybierz drużynę.", "error");
+            return;
+        }
 
+        const name = updatedName.trim();
+
+        if (!name) {
+            showMessage("Nazwa drużyny nie może być pusta.", "error");
+            return;
+        }
+
+        if (
+            teams.some(
+                (team) =>
+                    team.name.toLowerCase() === name.toLowerCase() &&
+                    team.name !== selectedTeam
+            )
+        ) {
+            showMessage("Drużyna o tej nazwie już istnieje.", "error");
+            return;
+        }
+
+        setLoading(true);
+        setMessage("");
+
+        const roster = Object.values(rosterInputs).map((player) =>
+            player.trim()
+        );
 
         const { error } = await supabase
             .from("teams")
-            .update({ roster: sendRoster })
-            .eq('name', selectedTeam)
-        setSendStatus(true)
-    }
+            .update({
+                name,
+                roster,
+            })
+            .eq("name", selectedTeam);
 
-    const removeTeam = async (event) => {
+        if (error) {
+            console.error("Error updating team:", error.message);
+            showMessage(`Błąd zapisu: ${error.message}`, "error");
+            setLoading(false);
+            return;
+        }
+
+        const refreshed = await loadTeams();
+
+        if (refreshed) {
+            setSelectedTeam(name);
+            setUpdatedName(name);
+            showMessage("Drużyna została zaktualizowana.", "success");
+        }
+
+        setLoading(false);
+    };
+
+    const removeTeam = async () => {
+        if (!selectedTeam) {
+            showMessage("Najpierw wybierz drużynę.", "error");
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Czy na pewno chcesz usunąć drużynę "${selectedTeam}"?`
+        );
+
+        if (!confirmed) return;
+
+        setLoading(true);
+        setMessage("");
+
         const { error } = await supabase
             .from("teams")
-            .delete("*")
-            .eq("name", selectedTeam)
-        setSendStatus(true)
-    }
+            .delete()
+            .eq("name", selectedTeam);
 
-const addTeam = async (event) => {
-  event.preventDefault();
+        if (error) {
+            console.error("Error deleting team:", error.message);
+            showMessage(`Błąd usuwania: ${error.message}`, "error");
+            setLoading(false);
+            return;
+        }
 
-  const roster = [
-    newPlayers.player1,
-    newPlayers.player2,
-    newPlayers.player3,
-    newPlayers.player4,
-    newPlayers.player5,
-  ].filter(Boolean);
+        const refreshed = await loadTeams();
 
-  const { error } = await supabase
-    .from("teams")
-    .insert([
-      {
-        name: newTeamName.trim(),
-        ranking: 3,
-        roster,
-      },
-    ]);
+        if (refreshed) {
+            resetEditor();
+            showMessage("Drużyna została usunięta.", "success");
+        }
 
-  if (error) {
-    console.error("Error inserting team:", error.message);
-  }
-};
+        setLoading(false);
+    };
+
+    const addTeam = async (event) => {
+        event.preventDefault();
+
+        const name = newTeamName.trim();
+
+        if (!name) {
+            showMessage("Podaj nazwę nowej drużyny.", "error");
+            return;
+        }
+
+        if (
+            teams.some(
+                (team) => team.name.toLowerCase() === name.toLowerCase()
+            )
+        ) {
+            showMessage("Drużyna o tej nazwie już istnieje.", "error");
+            return;
+        }
+
+        const roster = Object.values(newPlayers)
+            .map((player) => player.trim())
+            .filter(Boolean);
+
+        setLoading(true);
+        setMessage("");
+
+        const { error } = await supabase
+            .from("teams")
+            .insert([
+                {
+                    name,
+                    points: 0,
+                    roster,
+                },
+            ]);
+
+        if (error) {
+            console.error("Error inserting team:", error.message);
+            showMessage(`Błąd dodawania: ${error.message}`, "error");
+            setLoading(false);
+            return;
+        }
+
+        const refreshed = await loadTeams();
+
+        if (refreshed) {
+            setNewTeamName("");
+            setNewPlayers({ ...emptyNewPlayers });
+            showMessage("Nowa drużyna została dodana.", "success");
+        }
+
+        setLoading(false);
+    };
+
+    const inputClass =
+        "w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 bg-bg-light focus:animate-pulse";
 
     return (
         <div className="mx-4">
             <h1 className="text-2xl font-bold text-white mt-4">
                 Edycja drużyny
             </h1>
+
             <hr className="text-white mt-4 mb-4" />
+
+            {message && (
+                <p
+                    role="status"
+                    aria-live="polite"
+                    className={`mb-4 ${messageType === "error"
+                        ? "text-red-400"
+                        : "text-green-400"
+                        }`}
+                >
+                    {message}
+                </p>
+            )}
+
             <form onSubmit={updateDatabase}>
-                <div className="mb-2 mt-2">
+                <div className="mb-4 mt-2">
                     <label
                         htmlFor="team-select"
                         className="text-white"
@@ -132,73 +281,135 @@ const addTeam = async (event) => {
 
                     <select
                         id="team-select"
-                        className="bg-primary rounded-md ms-4 text-white"
+                        value={selectedTeam}
                         onChange={changePlayers}
+                        className="bg-primary rounded-md ms-4 text-white p-2"
                     >
-                        <option>Wybierz drużynę</option>
+                        <option value="">Wybierz drużynę</option>
+
                         {teams.map((team) => (
                             <option
                                 key={team.id}
                                 value={team.name}
-                                className="text-white"
                             >
                                 {team.name}
                             </option>
                         ))}
                     </select>
+                </div>
 
-                </div>
-                <div className="grid grid-cols-5 gap-2 mb-4">
-                    {!sendStatus ? (roster.map((player, i) => (
+                {selectedTeam && (
+                    <>
+                        <label
+                            htmlFor="updated-name"
+                            className="block text-white mb-2"
+                        >
+                            Nazwa drużyny
+                        </label>
+
                         <input
+                            id="updated-name"
                             type="text"
-                            className="text-white border-2 border-white rounded-md text-center p-2 bg-bg-light focus:animate-pulse"
-                            key={i}
-                            value={rosterInputs[`player${i + 1}`]}
-                            onChange={(event) => handlePlayerInputChange(event, i)}
+                            value={updatedName}
+                            onChange={(event) =>
+                                setUpdatedName(event.target.value)
+                            }
+                            className={`${inputClass} mb-4`}
+                            required
                         />
-                    ))) : null}
+
+                        <h2 className="text-white font-semibold mb-2">
+                            Skład drużyny
+                        </h2>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-4">
+                            {Object.values(rosterInputs).map(
+                                (player, index) => (
+                                    <input
+                                        key={index}
+                                        type="text"
+                                        aria-label={`Gracz ${index + 1}`}
+                                        placeholder={`Gracz ${index + 1}`}
+                                        value={player}
+                                        onChange={(event) =>
+                                            handlePlayerInputChange(
+                                                event,
+                                                index
+                                            )
+                                        }
+                                        className={inputClass}
+                                    />
+                                )
+                            )}
+                        </div>
+                    </>
+                )}
+
+                <div className="flex flex-wrap gap-3">
+                    <button
+                        type="submit"
+                        disabled={loading || !selectedTeam}
+                        className="hover:scale-95 transition-transform bg-primary p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {loading ? "Przetwarzanie..." : "Zapisz"}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={removeTeam}
+                        disabled={loading || !selectedTeam}
+                        className="hover:scale-95 transition-transform bg-primary p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Usuń drużynę
+                    </button>
                 </div>
-                <button type="submit" className="hover:scale-95 transition-transform hover:cursor-pointer bg-primary p-2 rounded-md text-bold text-white">Zapisz</button>
-                <button type="button" onClick={removeTeam} className="hover:scale-95 transition-transform hover:cursor-pointer bg-primary p-2 rounded-md text-bold text-white ms-4">Usuń drużynę</button>
-                <hr className="text-white mt-4 mb-4" />
             </form>
-            <h1 className="text-2xl font-bold text-white">
+
+            <hr className="text-white mt-4 mb-4" />
+
+            <h1 className="text-2xl font-bold text-white mb-4">
                 Dodanie drużyny
             </h1>
-            <form className ="grid grid-cols-5 gap-2" onSubmit={addTeam}>
-                    <input type="text" name="teamName" onChange={(event) => setNewTeamName(event.target.value)}/>
-                    <input
+
+            <form
+                className="flex flex-col gap-3"
+                onSubmit={addTeam}
+            >
+                <input
                     type="text"
+                    name="teamName"
+                    placeholder="Nazwa drużyny..."
+                    value={newTeamName}
                     onChange={(event) =>
-                        setNewPlayers((prev) => ({ ...prev, player1: event.target.value }))
+                        setNewTeamName(event.target.value)
                     }
-                    />
-                    <input
-                    type="text"
-                    onChange={(event) =>
-                        setNewPlayers((prev) => ({ ...prev, player2: event.target.value }))
-                    }
-                    />
-                    <input
-                    type="text"
-                    onChange={(event) =>
-                        setNewPlayers((prev) => ({ ...prev, player3: event.target.value }))
-                    }
-                    />
-                    <input
-                    type="text"
-                    onChange={(event) =>
-                        setNewPlayers((prev) => ({ ...prev, player4: event.target.value }))
-                    }
-                    />
-                    <input
-                    type="text"
-                    onChange={(event) =>
-                        setNewPlayers((prev) => ({ ...prev, player5: event.target.value }))
-                    }
-                    />
-                    <button type="submit" className="hover:scale-95 transition-transform hover:cursor-pointer bg-primary p-2 rounded-md text-bold text-white">Dodaj drużynę</button>
+                    className={inputClass}
+                    required
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                    {Object.values(newPlayers).map((player, index) => (
+                        <input
+                            key={index}
+                            type="text"
+                            placeholder={`Gracz ${index + 1}...`}
+                            aria-label={`Nowy gracz ${index + 1}`}
+                            value={player}
+                            onChange={(event) =>
+                                handleNewPlayerChange(event, index)
+                            }
+                            className={inputClass}
+                        />
+                    ))}
+                </div>
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-fit hover:scale-95 transition-transform bg-primary p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {loading ? "Przetwarzanie..." : "Dodaj drużynę"}
+                </button>
             </form>
         </div>
     );

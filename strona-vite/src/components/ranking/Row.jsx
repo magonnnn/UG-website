@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-const Row = ({ team, ranking, roster, logo }) => {
+const Row = ({ team, ranking, roster, logo, ite }) => {
 
     return (
         <tr className="bg-bg-light text-white hover:bg-rose-800 transition-colors mb-4 shadow-md">
-            <td className="text-center p-6 border-primary border-s-6 text-lg font-bold"><p>#{ranking}</p></td>
+            <td className="text-center p-6 border-primary border-s-6 text-lg font-bold"><p>#{ite + 1}</p></td>
             <td className="text-center p-6 text-lg font-bold">
                 {logo && <img src={logo} alt={`${team} logo`} className="w-10 h-10 object-contain" />}
             </td>

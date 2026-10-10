@@ -9,7 +9,7 @@ const Table = () => {
 
     useEffect(() => {
         async function fetchTeams() {
-            const { data, error } = await supabase.from("teams").select("*").order("ranking", { ascending: true });
+            const { data, error } = await supabase.from("teams").select("*").order("points", { ascending: false });
 
             if (error) {
                 setError(error.message);
@@ -38,10 +38,11 @@ const Table = () => {
                     <td colSpan="2">No teams found</td>
                 </tr>
                 )}
-                {!loading && !error && teams.map((team) => (
+                {!loading && !error && teams.map((team, i) => (
 
                     <Row
                         key={team.id}
+                        ite={i}
                         team={team.name}
                         ranking={team.ranking}
                         roster={team.roster}
