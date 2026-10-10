@@ -5,6 +5,8 @@ const Table = () => {
     const [users, setUsers] = useState([]);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
+    const [teams, setTeams] = useState([])
+    const [players, setPlayers] = useState([])
 
     useEffect(() => {
         async function fetchUsers() {
@@ -17,7 +19,8 @@ const Table = () => {
                 team_id,
                 teams (
                     name,
-                    ranking
+                    logo,
+                    roster
                 )
             `)
 
@@ -32,6 +35,45 @@ const Table = () => {
 
         fetchUsers();
     }, []);
+
+    useEffect(() => {
+        async function fetchTeams() {
+            const { data, error } = await supabase
+                .from("teams")
+                .select(`
+                id,
+                name,
+                logo,
+                roster
+            `)
+
+            if (error) {
+                setError(error.message);
+            } else {
+                setTeams(data ?? []);
+            }
+
+            setLoading(false);
+        }
+
+        fetchTeams();
+    }, []);
+
+
+
+    useEffect(() => {
+        const allPlayers = teams.flatMap((team) =>
+            (team.roster ?? []).map((player) => ({
+                name: player,
+                playerTeam: team.name,
+                teamLogo: team.logo
+            }))
+        );
+
+        setPlayers(allPlayers);
+    }, [teams]);
+
+
 
     return (
         <div>
@@ -60,14 +102,19 @@ const Table = () => {
                         <td colSpan="2">No users found</td>
                     </tr>
                     )}
-                    {!loading && !error && users.map((user) => (
+                    {!loading && !error && players.map((player, i) => (
 
                         <Row
-                            key={user.id}
-                            name={user.name}
-                            team={user.teams?.name}
-                            avatar={user.avatar_url}
-                            ranking={user.teams?.ranking}
+                            key={i}
+                            name={player.name}
+                            team={player.playerTeam}
+                            logo={
+                                typeof player.teamLogo === "string" && player.teamLogo.trim() !== ""
+                                    ? supabase.storage
+                                        .from("logos")
+                                        .getPublicUrl(player.teamLogo).data.publicUrl
+                                    : null
+                            }
                         />
                     ))}
                 </tbody>

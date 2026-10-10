@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-const Row = ({ team, ranking, roster, logo, ite }) => {
+const Row = ({ team, points, roster, logo, ite }) => {
 
     return (
         <tr className="bg-bg-light text-white hover:bg-rose-800 transition-colors mb-4 shadow-md">
@@ -12,7 +12,8 @@ const Row = ({ team, ranking, roster, logo, ite }) => {
                     {team}
                 </Link>
             </td>
-            <td className="font-medium p-6 text-start text-text font-thin rounded-e-md">{roster.map((player, i) => { return i !== roster.length - 1 ? player + ", " : player })}</td>
+            <td className="font-medium p-6 text-start text-text font-thin">{roster.map((player, i) => { return i !== roster.length - 1 ? player + ", " : player })}</td>
+            <td className="font-bold p-6 text-end text-text rounded-e-md">{points}</td>
         </tr>
 
     );

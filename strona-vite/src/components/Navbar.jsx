@@ -160,7 +160,7 @@ const Navbar = () => {
     const avatarUrl = getUserAvatar(user);
 
     return (
-        <nav className="bg-bg text-white py-4">
+        <nav className="bg-red-700 text-white py-4">
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between gap-4">
 
