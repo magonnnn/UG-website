@@ -59,19 +59,27 @@ const Table = () => {
         fetchTeams();
     }, []);
 
-
-
     useEffect(() => {
-        const allPlayers = teams.flatMap((team) =>
-            (team.roster ?? []).map((player) => ({
-                name: player,
-                playerTeam: team.name,
-                teamLogo: team.logo
-            }))
-        );
+        async function fetchPlayers() {
+            const { data, error } = await supabase
+                .from("players")
+                .select(`
+                id,
+                name,
+                current_team
+            `)
 
-        setPlayers(allPlayers);
-    }, [teams]);
+            if (error) {
+                setError(error.message);
+            } else {
+                setPlayers(data ?? []);
+            }
+
+            setLoading(false);
+        }
+
+        fetchPlayers();
+    }, []);
 
 
 
@@ -102,19 +110,12 @@ const Table = () => {
                         <td colSpan="2">No users found</td>
                     </tr>
                     )}
-                    {!loading && !error && players.map((player, i) => (
+                    {!loading && !error && players.map((player) => (
 
                         <Row
-                            key={i}
+                            key={player.id}
                             name={player.name}
-                            team={player.playerTeam}
-                            logo={
-                                typeof player.teamLogo === "string" && player.teamLogo.trim() !== ""
-                                    ? supabase.storage
-                                        .from("logos")
-                                        .getPublicUrl(player.teamLogo).data.publicUrl
-                                    : null
-                            }
+                            team={player.current_team}
                         />
                     ))}
                 </tbody>
