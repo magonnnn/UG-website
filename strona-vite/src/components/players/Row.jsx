@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
-const Row = ({ name, team, avatar, ranking }) => {
+import { useNavigate } from "react-router-dom"
+const Row = ({ name, team }) => {
+    const navigate = useNavigate()
 
     return (
-        <tr className="bg-bg-light text-white hover:bg-rose-800 transition-colors mb-4 shadow-md hover:cursor-pointer">
-            <td className="text-start p-6 border-primary border-s-6 text-lg font-bold"><p>{name}</p></td>
-            <td className="text-end p-6 text-lg font-bold">Drużyna: {team ? team + " #" + ranking : "Brak"}</td>
+        <tr onClick={() => navigate("/player", { state: { name } })} className="bg-bg-light text-white hover:bg-rose-800 transition-colors mb-4 shadow-md hover:cursor-pointer">
+            <td className="text-start p-6 text-lg font-bold flex flex-row items-center">{name}</td>
+            <td className="text-end p-6 text-lg font-bold">{team}</td>
             {/* <td className="font-medium p-6 text-start">
                 <Link to="/team" state={{ team }} className="text-start">
                     {team}

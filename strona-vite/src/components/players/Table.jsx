@@ -5,6 +5,8 @@ const Table = () => {
     const [users, setUsers] = useState([]);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
+    const [teams, setTeams] = useState([])
+    const [players, setPlayers] = useState([])
 
     useEffect(() => {
         async function fetchUsers() {
@@ -17,7 +19,8 @@ const Table = () => {
                 team_id,
                 teams (
                     name,
-                    ranking
+                    logo,
+                    roster
                 )
             `)
 
@@ -32,6 +35,56 @@ const Table = () => {
 
         fetchUsers();
     }, []);
+
+    useEffect(() => {
+        async function fetchTeams() {
+            const { data, error } = await supabase
+                .from("teams")
+                .select(`
+                id,
+                name,
+                logo,
+                roster
+            `)
+
+            if (error) {
+                setError(error.message);
+            } else {
+                setTeams(data ?? []);
+            }
+
+            setLoading(false);
+        }
+
+        fetchTeams();
+    }, []);
+
+
+    useEffect(() => {
+        async function fetchPlayers() {
+            const { data, error } = await supabase
+                .from("players")
+                .select(`
+        id,
+        name,
+        current_team:teams!players_current_team_fkey (
+          name
+        )
+      `);
+
+            if (error) {
+                setError(error.message);
+            } else {
+                setPlayers(data ?? []);
+            }
+
+            setLoading(false);
+        }
+
+        fetchPlayers();
+    }, []);
+
+
 
     return (
         <div>
@@ -60,14 +113,12 @@ const Table = () => {
                         <td colSpan="2">No users found</td>
                     </tr>
                     )}
-                    {!loading && !error && users.map((user) => (
+                    {!loading && !error && players.map((player) => (
 
                         <Row
-                            key={user.id}
-                            name={user.name}
-                            team={user.teams?.name}
-                            avatar={user.avatar_url}
-                            ranking={user.teams?.ranking}
+                            key={player.id}
+                            name={player.name}
+                            team={player.current_team?.name}
                         />
                     ))}
                 </tbody>

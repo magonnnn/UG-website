@@ -160,17 +160,9 @@ const Navbar = () => {
     const avatarUrl = getUserAvatar(user);
 
     return (
-        <nav className="bg-bg text-white py-4">
+        <nav className="bg-red-700 text-white py-4">
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between gap-4">
-
-                    <Link to="/" className="shrink-0">
-                        <img
-                            src={logo}
-                            alt="Logo"
-                            className="h-18 w-18 rounded-full object-cover"
-                        />
-                    </Link>
 
                     <div className="flex items-center gap-2">
                         <Link
@@ -202,7 +194,7 @@ const Navbar = () => {
                         </Link>
                     </div>
 
-                    {user && (
+                    {/* {user && (
                         <div className="flex items-center gap-2 min-w-0">
                             {avatarUrl ? (
                                 <img
@@ -226,32 +218,33 @@ const Navbar = () => {
                                 {displayName}
                             </span>
                         </div>
-                    )}
+                    )} */}
+                    <div className="flex flex-row gap-4">
+                        {profile?.role === "admin" && (
+                            <div>
+                                <div className="rounded-full bg-green-600"></div>
+                                <Link
+                                    to="/admin-panel"
+                                    className="inline-block bg-secondary hover:scale-95 cursor-pointer transition-transform duration-200 text-white font-bold py-2 px-4 rounded shrink-0"
+                                >
+                                    Panel Admina
+                                </Link>
+                            </div>
+                        )}
 
-                    {profile?.role === "admin" && (
-                        <div>
-                            <div className="rounded-full bg-green-600"></div>
-                            <Link
-                                to="/admin-panel"
-                                className="inline-block bg-secondary hover:scale-95 cursor-pointer transition-transform duration-200 text-white font-bold py-2 px-4 rounded shrink-0"
-                            >
-                                Panel Admina
-                            </Link>
-                        </div>
-                    )}
-
-                    <button
-                        type="button"
-                        className="bg-primary hover:scale-95 hover:cursor-pointer transition-transform text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                        onClick={user ? logout : login}
-                        disabled={!authReady}
-                    >
-                        {!authReady
-                            ? "Sprawdzanie..."
-                            : user
-                                ? "Wyloguj się"
-                                : "Zaloguj się"}
-                    </button>
+                        <button
+                            type="button"
+                            className="bg-primary hover:scale-95 hover:cursor-pointer transition-transform text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                            onClick={user ? logout : login}
+                            disabled={!authReady}
+                        >
+                            {!authReady
+                                ? "Sprawdzanie..."
+                                : user
+                                    ? "Wyloguj się"
+                                    : "Zaloguj się"}
+                        </button>
+                    </div>
                 </div>
             </div>
         </nav>
