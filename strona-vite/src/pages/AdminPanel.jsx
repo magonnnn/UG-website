@@ -51,7 +51,10 @@ const AdminPanel = () => {
     const [updatedPlayerName, setUpdatedPlayerName] = useState("");
     const [updatedPlayerSteam, setUpdatedPlayerSteam] = useState("");
     const [updatedPlayerTeam, setUpdatedPlayerTeam] = useState("");
+<<<<<<< HEAD
     const [editRoster, setEditRoster] = useState([])
+=======
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
 
 
     const [rosterInputs, setRosterInputs] = useSessionState(
@@ -112,6 +115,7 @@ const AdminPanel = () => {
     const loadPlayers = useCallback(async () => {
         const { data, error } = await supabase
             .from("players")
+<<<<<<< HEAD
             .select(`
                 id,
                 name,
@@ -119,6 +123,9 @@ const AdminPanel = () => {
                 current_team,
                 steam_profile
                 `)
+=======
+            .select("*")
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
 
         if (error) {
             console.error("Error loading players:", error.message);
@@ -140,13 +147,17 @@ const AdminPanel = () => {
     const resetEditor = () => {
         setSelectedTeamId("");
         setUpdatedName("");
+<<<<<<< HEAD
         setEditRoster([]);
+=======
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
         setRosterInputs({ ...emptyRoster });
     };
 
     const changeTeam = (event) => {
         const id = event.target.value;
         const team = teams.find((item) => String(item.id) === id);
+<<<<<<< HEAD
         const nextRoster = Array.from({ length: 5 }, (_, index) =>
             team?.[`player${index + 1}`] ?? null
         );
@@ -164,6 +175,22 @@ const AdminPanel = () => {
             player3: linkedRoster[2] ?? "",
             player4: linkedRoster[3] ?? "",
             player5: linkedRoster[4] ?? "",
+=======
+
+        setSelectedTeamId(team ? String(team.id) : "");
+        setUpdatedName(team?.name ?? "");
+
+        const linkedRoster = teamPlayerIds(team)
+            .map((id) => players.find((player) => String(player.id) === String(id))?.name ?? "");
+        const roster = linkedRoster;
+
+        setRosterInputs({
+            player1: roster[0] ?? "",
+            player2: roster[1] ?? "",
+            player3: roster[2] ?? "",
+            player4: roster[3] ?? "",
+            player5: roster[4] ?? "",
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
         });
 
         clearMessage();
@@ -253,6 +280,7 @@ const AdminPanel = () => {
             return;
         }
 
+<<<<<<< HEAD
         const rosterIds = Array.from({ length: 5 }, (_, index) => {
             const value = editRoster[index];
             return value == null || value === "" ? null : String(value);
@@ -264,6 +292,18 @@ const AdminPanel = () => {
         );
 
         if (rosterPlayers.some((player, index) => rosterIds[index] && !player)) {
+=======
+        const values = rosterValues(rosterInputs);
+        const rosterPlayers = values.map((playerName) =>
+            playerName
+                ? players.find(
+                    (player) => player.name.toLowerCase() === playerName.toLowerCase()
+                )
+                : null
+        );
+
+        if (rosterPlayers.some((player, index) => values[index] && !player)) {
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
             showMessage("Każdy gracz w składzie musi istnieć w bazie.", "error");
             return;
         }
@@ -324,9 +364,15 @@ const AdminPanel = () => {
             .from("teams")
             .update({
                 name,
+<<<<<<< HEAD
                 roster: rosterPlayers.map((player) => player?.name ?? "").filter(Boolean),
                 ...Object.fromEntries(
                     rosterIds.map((playerId, index) => [`player${index + 1}`, playerId])
+=======
+                roster: values.filter(Boolean),
+                ...Object.fromEntries(
+                    rosterPlayers.map((player, index) => [`player${index + 1}`, player?.id ?? null])
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
                 ),
                 points: (selectedTeam?.points ?? 0) + pointsChange,
                 logo: nextLogoPath,
@@ -432,7 +478,7 @@ const AdminPanel = () => {
             },
         ]).select("*").single();
 
-
+        z
         if (error) {
             console.error("Error inserting player:", error.message);
             showMessage(`Błąd dodawania gracza: ${error.message}`, "error");
@@ -446,6 +492,7 @@ const AdminPanel = () => {
             return;
         }
 
+<<<<<<< HEAD
         const player = players.find((item) => String(item.steam_profile) === steam)
 
 
@@ -471,6 +518,8 @@ const AdminPanel = () => {
             }
         }
 
+=======
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
         const [teamsRefreshed, playersRefreshed] = await Promise.all([
             loadTeams(),
             loadPlayers(),
@@ -505,7 +554,10 @@ const AdminPanel = () => {
         const player = players.find(
             (item) => String(item.id) === selectedPlayerId
         );
+<<<<<<< HEAD
 
+=======
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
         const name = updatedPlayerName.trim();
         const steam = updatedPlayerSteam.trim();
         const team = teams.find(
@@ -581,6 +633,7 @@ const AdminPanel = () => {
             return;
         }
 
+<<<<<<< HEAD
 
         if (teamChanged) {
             const { error: transferError } = await supabase
@@ -603,6 +656,8 @@ const AdminPanel = () => {
             }
         }
 
+=======
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
         if (teamChanged) {
             if (
                 targetTeam &&
@@ -820,6 +875,7 @@ const AdminPanel = () => {
 
         setLoading(false);
     };
+<<<<<<< HEAD
 
     const updateRoster = (index, playerId) => {
         setEditRoster((prev) => {
@@ -865,73 +921,370 @@ const AdminPanel = () => {
                             >
                                 <option value="">Wybierz drużynę</option>
 
-                                {teams.map((team) => (
-                                    <option key={team.id} value={String(team.id)}>
-                                        {team.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+=======
 
-                        {selectedTeamId && (
-                            <>
-                                <label
-                                    htmlFor="updated-name"
-                                    className="text-white"
-                                >
-                                    Nazwa drużyny
-                                </label>
-                                <div className="grid grid-cols-2 gap-2">
-
-                                    <input
-                                        id="updated-name"
-                                        type="text"
-                                        value={updatedName}
-                                        onChange={(event) =>
-                                            setUpdatedName(event.target.value)
-                                        }
-                                        className="mb-4 mt-2 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
-                                        required
-                                    />
-                                    <div>
-                                        <label htmlFor="teamLogoInput" className="sr-only">Wybierz logo</label>
-                                        <label className="flex items-center justify-center px-4 py-3 bg-red-700 text-white text-sm rounded-lg cursor-pointer hover:opacity-90 transition-opacity mt-2">
-                                            Wybierz logo
-                                            <input
-                                                type="file"
-                                                name="teamLogoInput"
-                                                id="teamLogoUpdate"
-                                                accept="image/png,image/jpeg,image/webp"
-                                                onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)}
-                                                className="hidden"
-                                            />
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <h2 className="text-white mb-2">
-                                    Skład drużyny
-                                </h2>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-4">
-                                    {Array.from({ length: 5 }, (_, index) => (
-                                        <select
-                                            key={index}
-                                            value={editRoster[index] ?? ""}
-                                            onChange={(event) => updateRoster(index, event.target.value)}
-                                            className="bg-red-700 rounded-md text-white p-2"
+    return (
+        <div className="mx-4 flex flex-col">
+                                    {feedback.text && (
+                                        <p
+                                            role="status"
+                                            aria-live="polite"
+                                            className={`mb-4 ${feedback.type === "error"
+                                                ? "text-red-400"
+                                                : "text-green-400"
+                                                }`}
                                         >
-                                            <option value="">Wybierz gracza</option>
-                                            {players.map((player) => (
-                                                <option key={player.id} value={String(player.id)}>
-                                                    {player.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                                            {feedback.text}
+                                        </p>
+                                    )}
+
+                                    <form onSubmit={updateDatabase} className="border-2 border-red-700 rounded-md mb-4 mt-4">
+                                        <h1 className="text-2xl font-bold text-white p-4 bg-red-700">
+                                            Edycja drużyny
+                                        </h1>
+                                        <div className="p-4">
+                                            <div className="mb-4 mt-2">
+                                                <label htmlFor="team-select" className="text-white">
+                                                    Wybierz drużynę:
+                                                </label>
+
+                                                <select
+                                                    id="team-select"
+                                                    value={selectedTeamId}
+                                                    onChange={changeTeam}
+                                                    className="bg-red-700 rounded-md ms-4 text-white p-2"
+                                                >
+                                                    <option value="">Wybierz drużynę</option>
+
+                                                    {teams.map((team) => (
+                                                        <option key={team.id} value={String(team.id)}>
+                                                            {team.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {selectedTeamId && (
+                                                <>
+                                                    <label
+                                                        htmlFor="updated-name"
+                                                        className="text-white"
+                                                    >
+                                                        Nazwa drużyny
+                                                    </label>
+                                                    <div className="grid grid-cols-2 gap-2">
+
+                                                        <input
+                                                            id="updated-name"
+                                                            type="text"
+                                                            value={updatedName}
+                                                            onChange={(event) =>
+                                                                setUpdatedName(event.target.value)
+                                                            }
+                                                            className="mb-4 mt-2 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                                            required
+                                                        />
+                                                        <div>
+                                                            <label htmlFor="teamLogoInput" className="sr-only">Wybierz logo</label>
+                                                            <label className="flex items-center justify-center px-4 py-3 bg-red-700 text-white text-sm rounded-lg cursor-pointer hover:opacity-90 transition-opacity mt-2">
+                                                                Wybierz logo
+                                                                <input
+                                                                    type="file"
+                                                                    name="teamLogoInput"
+                                                                    id="teamLogoUpdate"
+                                                                    accept="image/png,image/jpeg,image/webp"
+                                                                    onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)}
+                                                                    className="hidden"
+                                                                />
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    <h2 className="text-white mb-2">
+                                                        Skład drużyny
+                                                    </h2>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-4">
+                                                        {Object.values(rosterInputs).map(
+                                                            (player, index) => (
+                                                                <input
+                                                                    key={index}
+                                                                    type="text"
+                                                                    aria-label={`Gracz ${index + 1}`}
+                                                                    placeholder={`Gracz ${index + 1}`}
+                                                                    value={player}
+                                                                    onChange={(event) =>
+                                                                        handlePlayerInputChange(
+                                                                            event,
+                                                                            index
+                                                                        )
+                                                                    }
+                                                                    className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                                                />
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                            <h2 className="text-white mb-2">
+                                                Zmień punkty (odejmij / dodaj)
+                                            </h2>
+                                            <div className="grid grid-cols-2 gap-2 mb-4">
+                                                <input type="number" onBlur={(event) => { setPointsChange(prev => prev - Number(event.target.value)) }} name="reducePoints" className="mb-4 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse" />
+                                                <input type="number" onBlur={(event) => { setPointsChange(prev => prev + Number(event.target.value)) }} name="increasePoints" className="mb-4 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse" />
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-3">
+                                                <button
+                                                    type="submit"
+                                                    disabled={loading || !selectedTeamId}
+                                                    className="hover:cursor-pointer hover:scale-95 transition-transform bg-success p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {loading ? "Przetwarzanie..." : "Zapisz"}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={removeTeam}
+                                                    disabled={loading || !selectedTeamId}
+                                                    className="hover:scale-95 hover:cursor-pointer transition-transform bg-danger p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    Usuń drużynę
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+
+                                    <form className="flex flex-col gap-3 border-2 border-red-700 rounded-md mb-4 mt-4" onSubmit={addTeam}>
+                                        <h1 className="text-2xl font-bold text-white mb-4 p-4 bg-red-700">
+                                            Dodanie drużyny
+                                        </h1>
+                                        <div className="p-4">
+                                            <label
+                                                htmlFor="teamName"
+                                                className="block text-white mb-2"
+                                            >
+                                                Nazwa drużyny
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="teamName"
+                                                placeholder="Nazwa drużyny..."
+                                                value={newTeamName}
+                                                onChange={(event) => setNewTeamName(event.target.value)}
+                                                className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                                required
+                                            />
+                                            <h2 className="text-white mb-2 mt-2">
+                                                Skład drużyny
+                                            </h2>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                                                {Object.values(newPlayers).map((player, index) => (
+                                                    <input
+                                                        key={index}
+                                                        type="text"
+                                                        placeholder={`Gracz ${index + 1}...`}
+                                                        aria-label={`Nowy gracz ${index + 1}`}
+                                                        value={player}
+                                                        onChange={(event) =>
+                                                            handleNewPlayerChange(event, index)
+                                                        }
+                                                        className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div>
+                                                <label htmlFor="teamLogoInput" className="sr-only">Wybierz logo</label>
+                                                <label className="flex items-center justify-center px-4 py-3 bg-red-700 text-white text-sm rounded-lg cursor-pointer hover:opacity-90 transition-opacity mt-4">
+                                                    Wybierz logo
+                                                    <input
+                                                        type="file"
+                                                        name="teamLogoInput"
+                                                        id="teamLogoInput"
+                                                        accept="image/png,image/jpeg,image/webp"
+                                                        onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)}
+                                                        className="hidden"
+                                                    />
+                                                </label>
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                disabled={loading}
+                                                className="hover:cursor-pointer mt-4 w-fit hover:scale-95 transition-transform bg-success p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {loading ? "Przetwarzanie..." : "Dodaj drużynę"}
+                                            </button>
+                                        </div>
+                                    </form>
+                                    <form onSubmit={addPlayer} className="border-2 border-red-700 rounded-md mb-4 mt-4">
+                                        <h1 className="text-2xl font-bold text-white mb-4 p-4 bg-red-700">
+                                            Dodanie gracza
+                                        </h1>
+                                        <div className="p-4">
+                                            <label htmlFor="new-player-name" className="block text-white mb-2">Nazwa gracza</label>
+                                            <input
+                                                id="new-player-name"
+                                                type="text"
+                                                name="playerNickname"
+                                                placeholder="Nazwa gracza..."
+                                                value={newPlayer}
+                                                onChange={(event) => setNewPlayer(event.target.value)}
+                                                className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                                required
+                                            />
+                                            <label htmlFor="new-player-steam" className="block text-white mb-2 mt-4">Link do steama</label>
+                                            <input
+                                                id="new-player-steam"
+                                                type="text"
+                                                name="steamLink"
+                                                placeholder="Link do steama..."
+                                                value={newSteam}
+                                                onChange={(event) => setNewSteam(event.target.value)}
+                                                className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                                required
+                                            />
+                                            <label htmlFor="new-player-team" className="block text-white mb-2 mt-4">Drużyna</label>
+                                            <select
+                                                id="new-player-team"
+                                                value={newPlayerTeam}
+                                                onChange={(event) => setNewPlayerTeam(event.target.value)}
+                                                className="bg-red-700 rounded-md text-white p-2"
+                                            >
+                                                <option value="">Bez drużyny</option>
+                                                {teams.map((team) => (
+                                                    <option key={team.id} value={String(team.id)}>
+                                                        {team.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="submit"
+                                                disabled={loading}
+                                                className="hover:cursor-pointer mt-4 w-fit hover:scale-95 transition-transform bg-success p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {loading ? "Przetwarzanie..." : "Dodaj gracza"}
+                                            </button>
+                                        </div>
+                                    </form>
+                                    <form onSubmit={updatePlayer} className="border-2 border-red-700 rounded-md mb-4 mt-4">
+                                        <h1 className="text-2xl font-bold text-white mb-4 p-4 bg-red-700">
+                                            Edytuj gracza
+                                        </h1>
+                                        <div className="p-4">
+                                            <label htmlFor="edit-player-select" className="block text-white mb-2">Wybierz gracza</label>
+                                            <select
+                                                id="edit-player-select"
+                                                value={selectedPlayerId}
+                                                onChange={selectPlayer}
+                                                className="bg-red-700 rounded-md text-white p-2"
+                                            >
+                                                <option value="">Wybierz gracza</option>
+                                                {players.map((player) => (
+                                                    <option key={player.id} value={String(player.id)}>
+                                                        {player.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+
+                                            {selectedPlayerId && (
+                                                <>
+                                                    <label htmlFor="edit-player-name" className="block text-white mb-2 mt-4">Nazwa gracza</label>
+                                                    <input
+                                                        id="edit-player-name"
+                                                        type="text"
+                                                        value={updatedPlayerName}
+                                                        onChange={(event) => setUpdatedPlayerName(event.target.value)}
+                                                        className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                                        required
+                                                    />
+                                                    <label htmlFor="edit-player-steam" className="block text-white mb-2 mt-4">Link do steama</label>
+                                                    <input
+                                                        id="edit-player-steam"
+                                                        type="text"
+                                                        value={updatedPlayerSteam}
+                                                        onChange={(event) => setUpdatedPlayerSteam(event.target.value)}
+                                                        className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                                        required
+                                                    />
+                                                    <label htmlFor="edit-player-team" className="block text-white mb-2 mt-4">Drużyna</label>
+                                                    <select
+                                                        id="edit-player-team"
+                                                        value={updatedPlayerTeam}
+                                                        onChange={(event) => setUpdatedPlayerTeam(event.target.value)}
+                                                        className="bg-red-700 rounded-md text-white p-2"
+                                                    >
+                                                        <option value="">Bez drużyny</option>
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
+                                                        {teams.map((team) => (
+                                                            <option key={team.id} value={String(team.id)}>
+                                                                {team.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+<<<<<<< HEAD
+                        </div >
+
+    { selectedTeamId && (
+        <>
+            <label
+                htmlFor="updated-name"
+                className="text-white"
+            >
+                Nazwa drużyny
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+
+                <input
+                    id="updated-name"
+                    type="text"
+                    value={updatedName}
+                    onChange={(event) =>
+                        setUpdatedName(event.target.value)
+                    }
+                    className="mb-4 mt-2 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                    required
+                />
+                <div>
+                    <label htmlFor="teamLogoInput" className="sr-only">Wybierz logo</label>
+                    <label className="flex items-center justify-center px-4 py-3 bg-red-700 text-white text-sm rounded-lg cursor-pointer hover:opacity-90 transition-opacity mt-2">
+                        Wybierz logo
+                        <input
+                            type="file"
+                            name="teamLogoInput"
+                            id="teamLogoUpdate"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)}
+                            className="hidden"
+                        />
+                    </label>
+                </div>
+            </div>
+
+            <h2 className="text-white mb-2">
+                Skład drużyny
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-4">
+                {Array.from({ length: 5 }, (_, index) => (
+                    <select
+                        key={index}
+                        value={editRoster[index] ?? ""}
+                        onChange={(event) => updateRoster(index, event.target.value)}
+                        className="bg-red-700 rounded-md text-white p-2"
+                    >
+                        <option value="">Wybierz gracza</option>
+                        {players.map((player) => (
+                            <option key={player.id} value={String(player.id)}>
+                                {player.name}
+                            </option>
+                        ))}
+                    </select>
+                ))}
+            </div>
+        </>
+    )}
 
                         <h2 className="text-white mb-2">
                             Zmień punkty (odejmij / dodaj)
@@ -959,7 +1312,7 @@ const AdminPanel = () => {
                                 Usuń drużynę
                             </button>
                         </div>
-                    </div>
+                    </div >
                 </form >
                 <form className="flex flex-col gap-3 border-2 border-red-700 rounded-md mt-4" onSubmit={addTeam}>
                     <h1 className="text-2xl font-bold text-white mb-4 p-4 bg-red-700">
@@ -1149,7 +1502,29 @@ const AdminPanel = () => {
                     </div>
                 </form>
             </div >
-        </div>
+=======
+                        </>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={loading || !selectedPlayerId}
+                        className="hover:cursor-pointer mt-4 w-fit hover:scale-95 transition-transform bg-success p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {loading ? "Przetwarzanie..." : "Zapisz zmiany"}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={removePlayer}
+                        disabled={loading || !selectedPlayerId}
+                        className="hover:cursor-pointer mt-4 ml-3 w-fit hover:scale-95 transition-transform bg-danger p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Usuń gracza
+                    </button>
+                </div>
+            </form>
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
+        </div >
     );
 };
 

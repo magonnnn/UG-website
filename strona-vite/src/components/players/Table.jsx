@@ -59,18 +59,28 @@ const Table = () => {
         fetchTeams();
     }, []);
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
     useEffect(() => {
         async function fetchPlayers() {
             const { data, error } = await supabase
                 .from("players")
                 .select(`
+<<<<<<< HEAD
         id,
         name,
         current_team:teams!players_current_team_fkey (
           name
         )
       `);
+=======
+                id,
+                name,
+                current_team
+            `)
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
 
             if (error) {
                 setError(error.message);
@@ -118,7 +128,11 @@ const Table = () => {
                         <Row
                             key={player.id}
                             name={player.name}
+<<<<<<< HEAD
                             team={player.current_team?.name}
+=======
+                            team={player.current_team}
+>>>>>>> db943ae343079f50ee5d298376690d6e2632a857
                         />
                     ))}
                 </tbody>
