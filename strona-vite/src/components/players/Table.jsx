@@ -152,6 +152,7 @@ id,
                                 key={player.id}
                                 name={player.name}
                                 team={player.current_team?.name}
+                                id={player.id}
                             />
                         ))}
                 </tbody>
