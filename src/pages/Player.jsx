@@ -12,52 +12,62 @@ const Player = () => {
 
     useEffect(() => {
         async function fetchUser() {
+            if (id == null) {
+                setError("Nie podano ID gracza.");
+                return;
+            }
+
             const { data, error } = await supabase
                 .from("players")
                 .select(`
-                    id,
+                id,
+                name,
+                team_history,
+                created_at,
+                steam_profile,
+                current_team:teams!players_current_team_fkey (
                     name,
-                    team_history,
-                    created_at,
-                    steam_profile,
-                    current_team:teams!players_current_team_fkey (
-                        name,
-                        logo
-                    )
-                `)
-                .eq('id', id)
+                    logo
+                )
+            `)
+                .eq("id", id)
                 .single();
 
             if (error) {
-                setError(error.message)
+                setError(error.message);
             } else {
-                setPlayer(data ?? {})
-                setError("")
+                setPlayer(data ?? {});
+                setError("");
             }
         }
 
         fetchUser();
-    }, [id])
+    }, [id]);
 
     useEffect(() => {
         async function fetchTransfer() {
+            if (id == null) {
+                setTransfer({});
+                return;
+            }
+
             const { data, error } = await supabase
                 .from("transfers")
                 .select("created_at")
                 .eq("player_id", id)
                 .order("created_at", { ascending: false })
                 .limit(1)
-                .maybeSingle()
+                .maybeSingle();
 
             if (error) {
-                setError(error.message)
+                setError(error.message);
             } else {
-                setTransfer(data ?? {})
-                setError("")
+                setTransfer(data ?? {});
             }
         }
-        fetchTransfer()
-    }, [])
+
+        fetchTransfer();
+    }, [id]);
 
     useEffect(() => {
         async function fetchTeams() {
