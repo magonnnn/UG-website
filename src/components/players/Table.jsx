@@ -11,44 +11,15 @@ const Table = () => {
     const [players, setPlayers] = useState([]);
 
     useEffect(() => {
-        async function fetchUsers() {
-            const { data, error } = await supabase
-                .from("users")
-                .select(`
-id,
-    name,
-    avatar_url,
-    team_id,
-    teams(
-        name,
-        logo,
-        roster
-    )
-        `);
-
-            if (error) {
-                console.error("Błąd pobierania użytkowników:", error);
-                setError(error.message);
-            } else {
-                setUsers(data ?? []);
-            }
-
-            setLoading(false);
-        }
-
-        fetchUsers();
-    }, []);
-
-    useEffect(() => {
         async function fetchTeams() {
             const { data, error } = await supabase
                 .from("teams")
                 .select(`
-id,
-    name,
-    logo,
-    roster
-        `);
+                        id,
+                        name,
+                        logo,
+                        roster
+                    `);
 
             if (error) {
                 setError(error.message);
