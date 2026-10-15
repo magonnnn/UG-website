@@ -14,7 +14,7 @@ import RightBar from "./pages/RightBar"
 
 const App = () => {
   return (
-    <HashRouter basename="/UG-website">
+    <HashRouter>
       <div className="flex min-h-screen flex-col w-full">
         <Header />
 
