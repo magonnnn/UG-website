@@ -27,6 +27,7 @@ id,
         `);
 
             if (error) {
+                console.error("Błąd pobierania użytkowników:", error);
                 setError(error.message);
             } else {
                 setUsers(data ?? []);
