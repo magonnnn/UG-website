@@ -135,11 +135,12 @@ const Navbar = () => {
         };
     }, []);
 
+
     const login = async () => {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "discord",
             options: {
-                redirectTo: window.location.origin,
+                redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
             },
         });
 
@@ -147,6 +148,7 @@ const Navbar = () => {
             console.error("Error logging in:", error.message);
         }
     };
+
 
     const logout = async () => {
         const { error } = await supabase.auth.signOut();
