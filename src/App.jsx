@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import AdminRoute from "./components/AdminRoute";
@@ -14,7 +14,7 @@ import RightBar from "./pages/RightBar"
 
 const App = () => {
   return (
-    <BrowserRouter>
+    <HashRouter basename="/UG-website">
       <div className="flex min-h-screen flex-col w-full">
         <Header />
 
@@ -44,7 +44,7 @@ const App = () => {
         </div>
         <Footer />
       </div>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 
