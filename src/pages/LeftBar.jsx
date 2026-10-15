@@ -119,7 +119,7 @@ const LeftBar = () => {
                     <p className="text-white">No transfers found</p>
                 ) : (
                     transfers.map((transfer, index) => (
-                        <Link to="/player" state={transfer.player_id}>
+                        <Link to="/player" state={transfer.player_id} key={index}>
                             <div className="w-full flex flex-row bg-bg border-b-2 p-4 border-red-700 hover:bg-bg-light justify-between" key={index}>
                                 {transfer.from_team?.logo && (
                                     <img

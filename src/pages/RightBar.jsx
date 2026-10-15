@@ -35,6 +35,8 @@ const RightBar = () => {
             .data.publicUrl;
     };
 
+
+
     return (
         <aside className="w-full p-4">
             <div className="">
@@ -42,11 +44,11 @@ const RightBar = () => {
                     <p className="text-white">No teams found</p>
                 ) : (
                     teams.map((team, index) => (
-                        <Link to="/team" state={team.id}>
-                            <div className="w-full flex flex-row bg-bg border-b-2 border-red-700 hover:bg-bg-light" key={index}>
+                        <Link to="/team" state={{ id: team.id }} key={team.id}>
+                            <div className="w-full flex flex-row bg-bg border-b-2 border-red-700 hover:bg-bg-light">
                                 {team?.logo && (
                                     <div className="flex flex-row w-full p-4 space-x-4">
-                                        <p className="text-white">{index}.</p>
+                                        <p className="text-white">{index + 1}.</p>
                                         <img
                                             src={getLogoUrl(team.logo)}
                                             alt={team.name ?? "Previous team"}

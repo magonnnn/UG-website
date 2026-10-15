@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-const Row = ({ team, points, roster, logo, ite }) => {
+const Row = ({ id, team, points, roster, logo, ite }) => {
 
     return (
         <tr className="bg-bg-light text-white hover:bg-rose-800 transition-colors mb-4 shadow-md">
@@ -8,7 +8,7 @@ const Row = ({ team, points, roster, logo, ite }) => {
                 {logo && <img src={logo} alt={`${team} logo`} className="w-10 h-10 object-contain" />}
             </td>
             <td className="font-medium p-6 text-start">
-                <Link to="/team" state={{ team }} className="text-start">
+                <Link to="/team" state={{ id }} className="text-start">
                     {team}
                 </Link>
             </td>

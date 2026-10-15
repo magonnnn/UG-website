@@ -58,6 +58,7 @@ const Table = () => {
                         .map((team, i) => (
                             <Row
                                 key={team.id}
+                                id={team.id}
                                 ite={i}
                                 team={team.name}
                                 points={team.points}

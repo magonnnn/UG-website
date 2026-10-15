@@ -4,8 +4,10 @@ import { supabase } from "../lib/supabaseClient";
 import { Link } from "react-router-dom";
 const Team = () => {
     const location = useLocation();
-    const team = location.state?.team;
+    const selectedTeam = location.state;
+    const teamId = location.state?.id;
 
+    console.log(teamId)
 
     const [teams, setTeams] = useState([]);
     const [error, setError] = useState("");
@@ -13,7 +15,7 @@ const Team = () => {
 
     useEffect(() => {
         async function fetchTeams() {
-            const { data, error } = await supabase.from("teams").select("*").eq("name", team);
+            const { data, error } = await supabase.from("teams").select("*").eq("id", teamId);
 
             if (error) {
                 setError(error.message);
@@ -25,7 +27,7 @@ const Team = () => {
         }
 
         fetchTeams();
-    }, [team]);
+    }, [teamId]);
 
     const profileUrl = supabase.storage.from("icons").getPublicUrl("profile-default.svg").data.publicUrl;
     const logoUrl = teams[0]?.logo
@@ -39,8 +41,8 @@ const Team = () => {
     return (
         <div>
             <div className="flex flex-row align-center">
-                <img src={logoUrl} alt={`${team} logo`} className="w-16 h-16 mb-2 invert" />
-                <h1 className="text-3xl font-bold mb-4 text-white">{team}</h1>
+                <img src={logoUrl} alt={`${teamId} logo`} className="w-16 h-16 mb-2" />
+                <h1 className="text-3xl font-bold mb-4 text-white">{teamId}</h1>
             </div>
             <div className="grid grid-cols-5 gap-4">
                 {roster.map((player, i) => {
