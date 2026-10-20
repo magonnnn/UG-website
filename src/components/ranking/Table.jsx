@@ -30,11 +30,11 @@ const Table = () => {
 
     return (
         <div>
-            <form className="w-full px-4 mt-4">
-                <label htmlFor="search" className="text-white me-4">Wyszukaj drużynę</label>
-                <input type="text" id="search" onChange={(event) => updateDisplay(event.target.value)} placeholder="Wyszukaj drużynę..." className="rounded-md border border-gray-300 p-2 text-white" />
+            <form className="mt-4 flex w-full flex-col gap-2 px-1 sm:flex-row sm:items-center sm:px-0">
+                <label htmlFor="search" className="text-white">Wyszukaj drużynę</label>
+                <input type="text" id="search" onChange={(event) => updateDisplay(event.target.value)} placeholder="Wyszukaj drużynę..." className="w-full min-w-0 rounded-md border border-gray-300 p-2 text-white sm:max-w-sm" />
             </form>
-            <table className="table-auto w-full border-separate border-spacing-y-4 px-4">
+            <table className="mt-2 w-full table-auto border-separate border-spacing-y-3 sm:border-spacing-y-4">
                 <tbody>
                     {loading && (<tr>
                         <td colSpan="2">Loading teams...</td>

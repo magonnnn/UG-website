@@ -15,13 +15,15 @@ import RightBar from "./pages/RightBar"
 const App = () => {
   return (
     <HashRouter>
-      <div className="flex min-h-screen flex-col w-full">
+      <div className="flex min-h-screen w-full flex-col overflow-x-hidden">
         <Header />
 
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,4fr)_minmax(0,1fr)] w-full">
-          <LeftBar className="min-w-0" />
+        <div className="grid w-full min-w-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,4fr)_minmax(0,1fr)]">
+          <div className="order-2 min-w-0 lg:order-1">
+            <LeftBar />
+          </div>
 
-          <main className="min-w-0">
+          <main className="order-1 min-w-0 px-3 sm:px-4 lg:order-2 lg:px-0">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/ranking" element={<Ranking />} />
@@ -40,7 +42,9 @@ const App = () => {
             </Routes>
           </main>
 
-          <RightBar className="min-w-0" />
+          <div className="order-3 min-w-0">
+            <RightBar />
+          </div>
         </div>
         <Footer />
       </div>

@@ -162,11 +162,11 @@ const Navbar = () => {
     const avatarUrl = getUserAvatar(user);
 
     return (
-        <nav className="bg-red-700 text-white py-4">
+        <nav className="bg-red-700 py-3 text-white sm:py-4">
             <div className="container mx-auto px-4">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-start sm:gap-2">
                         <Link
                             to="/"
                             className="hover:text-gray-300 p-2 rounded-md"
@@ -221,13 +221,13 @@ const Navbar = () => {
                             </span>
                         </div>
                     )} */}
-                    <div className="flex flex-row gap-4">
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end sm:gap-4">
                         {profile?.role === "admin" && (
                             <div>
                                 <div className="rounded-full bg-green-600"></div>
                                 <Link
                                     to="/admin-panel"
-                                    className="inline-block bg-secondary hover:scale-95 cursor-pointer transition-transform duration-200 text-white font-bold py-2 px-4 rounded shrink-0"
+                                    className="inline-block shrink-0 rounded bg-secondary px-3 py-2 text-center text-sm font-bold text-white transition-transform duration-200 hover:scale-95 sm:px-4 sm:text-base"
                                 >
                                     Panel Admina
                                 </Link>
@@ -236,7 +236,7 @@ const Navbar = () => {
 
                         <button
                             type="button"
-                            className="bg-primary hover:scale-95 hover:cursor-pointer transition-transform text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                            className="shrink-0 rounded bg-primary px-3 py-2 text-sm font-bold text-white transition-transform hover:scale-95 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-base"
                             onClick={user ? logout : login}
                             disabled={!authReady}
                         >

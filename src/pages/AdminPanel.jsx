@@ -844,7 +844,7 @@ const AdminPanel = () => {
                     </p>
                 )
             }
-            < div className="mx-4 grid grid-cols-2 gap-4" >
+            <div className="mx-3 grid grid-cols-1 gap-4 sm:mx-4 lg:grid-cols-2">
 
                 < form onSubmit={updateDatabase} className="border-2 border-red-700 rounded-md mt-4" >
                     <h1 className="text-2xl font-bold text-white p-4 bg-red-700">
@@ -860,7 +860,7 @@ const AdminPanel = () => {
                                 id="team-select"
                                 value={selectedTeamId}
                                 onChange={changeTeam}
-                                className="bg-red-700 rounded-md ms-4 text-white p-2"
+                                className="mt-2 w-full rounded-md bg-red-700 p-2 text-white sm:ms-4 sm:mt-0 sm:w-auto"
                             >
                                 <option value="">Wybierz drużynę</option>
 
@@ -880,7 +880,7 @@ const AdminPanel = () => {
                                 >
                                     Nazwa drużyny
                                 </label>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 
                                     <input
                                         id="updated-name"
@@ -935,7 +935,7 @@ const AdminPanel = () => {
                         <h2 className="text-white mb-2">
                             Zmień punkty (odejmij / dodaj)
                         </h2>
-                        <div className="grid grid-cols-2 gap-2 mb-4">
+                        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <input type="number" onBlur={(event) => { setPointsChange(prev => prev - Number(event.target.value)) }} name="reducePoints" className="mb-4 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse" />
                             <input type="number" onBlur={(event) => { setPointsChange(prev => prev + Number(event.target.value)) }} name="increasePoints" className="mb-4 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse" />
                         </div>

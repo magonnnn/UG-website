@@ -38,23 +38,24 @@ const RightBar = () => {
 
 
     return (
-        <aside className="w-full p-4">
-            <div className="">
+        <aside className="w-full min-w-0 p-3 sm:p-4">
+            <h1 className="mt-2 mb-4 text-lg font-bold text-white sm:mt-4 sm:text-xl">Ranking Podziemia:</h1>
+            <div>
                 {teams.length === 0 ? (
                     <p className="text-white">No teams found</p>
                 ) : (
                     teams.map((team, index) => (
                         <Link to="/team" state={{ id: team.id }} key={team.id}>
-                            <div className="w-full flex flex-row bg-bg border-b-2 border-red-700 hover:bg-bg-light">
+                            <div className="flex w-full min-w-0 flex-row border-b-2 border-red-700 bg-bg hover:bg-bg-light">
                                 {team?.logo && (
-                                    <div className="flex flex-row w-full p-4 space-x-4">
-                                        <p className="text-white">{index + 1}.</p>
+                                    <div className="flex w-full min-w-0 flex-row items-center gap-3 p-3 sm:p-4">
+                                        <p className="shrink-0 text-white">{index + 1}.</p>
                                         <img
                                             src={getLogoUrl(team.logo)}
                                             alt={team.name ?? "Previous team"}
-                                            className="w-6 h-6 object-contain"
+                                            className="h-6 w-6 shrink-0 object-contain"
                                         />
-                                        <p className="text-white">{team.name}</p>
+                                        <p className="min-w-0 truncate text-white">{team.name}</p>
                                     </div>
                                 )}
                             </div>

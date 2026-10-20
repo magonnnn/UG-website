@@ -59,10 +59,10 @@ id,
 
     return (
         <div>
-            <form className="w-full px-4 mt-4">
+            <form className="mt-4 flex w-full flex-col gap-2 px-1 sm:px-0">
                 <label
                     htmlFor="search"
-                    className="text-white me-4"
+                    className="text-white"
                 >
                     Wyszukaj gracza
                 </label>
@@ -71,18 +71,18 @@ id,
                     type="text"
                     id="search"
                     placeholder="Wyszukaj gracza..."
-                    className="rounded-md border border-gray-300 p-2 text-white"
+                    className="w-full min-w-0 rounded-md border border-gray-300 p-2 text-white"
                 />
 
                 <label
                     htmlFor="team-select"
-                    className="text-white ms-4 me-4"
+                    className="mt-2 text-white sm:mt-0"
                 >
                     Wybierz drużynę
                 </label>
 
                 <select
-                    className="rounded-md border border-gray-300 text-white p-2"
+                    className="w-full min-w-0 rounded-md border border-gray-300 p-2 text-white"
                     id="team-select"
                 >
                     <option value="">Wszystkie drużyny</option>
@@ -95,7 +95,7 @@ id,
                 </select>
             </form>
 
-            <table className="table-auto w-full border-separate border-spacing-y-4 px-4">
+            <table className="mt-2 w-full table-auto border-separate border-spacing-y-3 sm:border-spacing-y-4">
                 <tbody>
                     {loading && (
                         <tr>

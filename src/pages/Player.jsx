@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useState, useEffect } from "react";
 
@@ -26,6 +26,7 @@ const Player = () => {
                 created_at,
                 steam_profile,
                 current_team:teams!players_current_team_fkey (
+                    id,
                     name,
                     logo
                 )
@@ -106,28 +107,37 @@ const Player = () => {
 
     return (
         <div>
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] w-full gap-4 mt-4 mb-4">
+            <div className="mt-4 mb-4 grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)]">
                 <div className="border-2 border-red-700 rounded-md">
                     <h1 className="text-2xl text-center font-bold text-white p-4 bg-red-700">
                         Profil
                     </h1>
                     <div className="flex flex-col items-center">
-                        {teamLogo && (
-                            <img
-                                src={teamLogo}
-                                alt={`Logo drużyny ${player.current_team?.name ?? ""}`}
-                                className="w-30 h-30 rounded-full mb-6 mt-6"
-                            />
-                        )}
-                        {!teamLogo && (
+                        {player.current_team ? (
+                            <Link to="/team" state={{ id: player.current_team.id }}>
+                                {teamLogo ? (
+                                    <img
+                                        src={teamLogo}
+                                        alt={`Logo drużyny ${player.current_team.name}`}
+                                        className="w-30 h-30 rounded-full mb-6 mt-6"
+                                    />
+                                ) : (
+                                    <img
+                                        src={profileUrl}
+                                        alt={`Logo drużyny ${player.current_team.name}`}
+                                        className="w-30 h-30 rounded-full mb-6 mt-6 invert"
+                                    />
+                                )}
+                            </Link>
+                        ) : (
                             <img
                                 src={profileUrl}
-                                alt={`Logo drużyny ${player.current_team?.name ?? ""}`}
+                                alt="Brak drużyny"
                                 className="w-30 h-30 rounded-full mb-6 mt-6 invert"
                             />
                         )}
                         <hr className="text-red-700 w-full"></hr>
-                        <h1 className="text-4xl font-bold mb-4 text-white self-start ms-4 mt-4">{player.name}</h1>
+                        <h1 className="mt-4 mb-4 self-start break-words px-4 text-3xl font-bold text-white sm:text-4xl">{player.name}</h1>
                         <hr className="text-red-700 w-full"></hr>
                         <table className="border-separate border-spacing-4 w-full">
                             <tr>
@@ -137,7 +147,9 @@ const Player = () => {
                                         <h2 className="text-white text-xl">Brak</h2>
                                     )}
                                     {player.current_team && (
-                                        <h2 className="text-white text-xl text-end">{player.current_team.name}</h2>
+                                        <Link to="/team" state={{ id: player.current_team.id }}>
+                                            <h2 className="text-white text-xl text-end">{player.current_team.name}</h2>
+                                        </Link>
                                     )}
                                 </td>
                             </tr>
@@ -185,7 +197,9 @@ const Player = () => {
                                     : null;
 
                                 return (
-                                    <div
+                                    <Link
+                                        to="/team"
+                                        state={{ id: team.id }}
                                         key={`${team.id}-${index}`}
                                         className="flex items-center gap-3 text-white"
                                     >
@@ -200,7 +214,7 @@ const Player = () => {
                                         <span className="text-lg font-semibold">
                                             {team.name}
                                         </span>
-                                    </div>
+                                    </Link>
                                 );
                             })
                         ) : (

@@ -57,7 +57,7 @@ const LeftBar = () => {
     const noTeamUrl = supabase.storage.from("icons").getPublicUrl("none.svg").data.publicUrl;
 
     return (
-        <aside className="w-full p-4">
+        <aside className="w-full min-w-0 p-3 sm:p-4">
             {/* <div className="space-y-3">
                 {transfers.length === 0 ? (
                     <p className="text-sm text-gray-400">
@@ -114,29 +114,32 @@ const LeftBar = () => {
                     ))
                 )}
             </div> */}
-            <div className="">
+            <h1 className="mt-2 mb-4 text-lg font-bold text-white sm:mt-4 sm:text-xl">Ostatnie transfery:</h1>
+            <div>
                 {transfers.length === 0 ? (
                     <p className="text-white">No transfers found</p>
                 ) : (
+
+
                     transfers.map((transfer, index) => (
-                        <Link to="/player" state={transfer.player_id} key={index}>
-                            <div className="w-full flex flex-row bg-bg border-b-2 p-4 border-red-700 hover:bg-bg-light justify-between" key={index}>
+                        <Link to="/player" state={{ id: transfer.player_id }} key={index}>
+                            <div className="flex w-full min-w-0 flex-row items-center justify-between gap-2 border-b-2 border-red-700 bg-bg p-3 hover:bg-bg-light sm:gap-4 sm:p-4" key={index}>
                                 {transfer.from_team?.logo && (
                                     <img
                                         src={getLogoUrl(transfer.from_team.logo)}
                                         alt={transfer.from_team.name ?? "Previous team"}
-                                        className="w-6 h-6 object-contain"
+                                        className="h-6 w-6 shrink-0 object-contain"
                                     />
                                 )}
                                 {!transfer.from_team?.logo && (
                                     <img
                                         src={noTeamUrl}
                                         alt="Previous team"
-                                        className="w-6 h-6 object-contain invert"
+                                        className="h-6 w-6 shrink-0 object-contain invert"
                                     />
                                 )}
-                                <div className="flex flex-col items-center">
-                                    <p className="font-bold text-center text-white">
+                                <div className="flex min-w-0 flex-col items-center">
+                                    <p className="max-w-full truncate text-center font-bold text-white">
                                         {transfer.players?.name ?? "Unknown player"}
                                     </p>
                                     {/* <img
@@ -149,14 +152,14 @@ const LeftBar = () => {
                                     <img
                                         src={getLogoUrl(transfer.to_team.logo)}
                                         alt={transfer.to_team.name ?? "New team"}
-                                        className="w-6 h-6 object-contain"
+                                        className="h-6 w-6 shrink-0 object-contain"
                                     />
                                 )}
                                 {!transfer.to_team?.logo && (
                                     <img
                                         src={noTeamUrl}
                                         alt="New team"
-                                        className="w-6 h-6 object-contain invert"
+                                        className="h-6 w-6 shrink-0 object-contain invert"
                                     />
                                 )}
                             </div>
