@@ -4,6 +4,9 @@ import { Link } from "react-router-dom";
 
 const RightBar = () => {
     const [teams, setTeams] = useState([]);
+    const [matches, setMatches] = useState([]);
+    const [matchesLoading, setMatchesLoading] = useState(true);
+    const [matchesError, setMatchesError] = useState("");
 
     useEffect(() => {
         const loadTopTeams = async () => {
@@ -26,6 +29,49 @@ const RightBar = () => {
         loadTopTeams();
     }, []);
 
+    useEffect(() => {
+        const loadUpcomingMatches = async () => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const { data, error } = await supabase
+                .from("matches")
+                .select(`
+                    id,
+                    time,
+                    league:tournaments!matches_league_fkey(
+                        name
+                    ),
+                    team_1:teams!matches_team_1_id_fkey(
+                        name,
+                        logo
+                    ),
+                    team_2:teams!matches_team_2_id_fkey(
+                        name,
+                        logo
+                    )
+                    `)
+                .gte("time", today.toISOString())
+                .lt("time", tomorrow.toISOString())
+                .order("time", { ascending: true });
+
+            if (error) {
+                console.error("Error loading matches:", error.message);
+                setMatchesError("Nie udało się załadować meczów.");
+                setMatchesLoading(false);
+                return;
+            }
+
+            setMatches(data ?? []);
+            setMatchesLoading(false);
+        }
+
+        loadUpcomingMatches();
+    }, []);
+
     const getLogoUrl = (logo) => {
         if (!logo) return null;
 
@@ -38,32 +84,75 @@ const RightBar = () => {
 
 
     return (
-        <aside className="w-full min-w-0 p-3 sm:p-4">
-            <h1 className="mt-2 mb-4 text-lg font-bold text-white sm:mt-4 sm:text-xl">Ranking Podziemia:</h1>
-            <div>
-                {teams.length === 0 ? (
-                    <p className="text-white">No teams found</p>
-                ) : (
-                    teams.map((team, index) => (
-                        <Link to="/team" state={{ id: team.id }} key={team.id}>
-                            <div className="flex w-full min-w-0 flex-row border-b-2 border-red-700 bg-bg hover:bg-bg-light">
-                                {team?.logo && (
-                                    <div className="flex w-full min-w-0 flex-row items-center gap-3 p-3 sm:p-4">
-                                        <p className="shrink-0 text-white">{index + 1}.</p>
-                                        <img
-                                            src={getLogoUrl(team.logo)}
-                                            alt={team.name ?? "Previous team"}
-                                            className="h-6 w-6 shrink-0 object-contain"
-                                        />
-                                        <p className="min-w-0 truncate text-white">{team.name}</p>
-                                    </div>
+        <aside className="min-w-0 space-y-4 p-3 sm:p-4">
+            <section className="overflow-hidden bg-bg">
+                <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Ranking Podziemia
+                </h2>
+                <div>
+                    {teams.length === 0 ? (
+                        <p className="px-4 py-4 text-sm text-gray-400">Brak drużyn w rankingu.</p>
+                    ) : (
+                        teams.map((team, index) => (
+                            <Link
+                                to="/team"
+                                state={{ id: team.id }}
+                                key={team.id}
+                                className="flex min-w-0 items-center gap-3 px-3 py-3 hover:bg-white/[0.03]"
+                            >
+                                <span className="w-4 shrink-0 text-xs font-bold text-gray-500">{index + 1}</span>
+                                {team.logo ? (
+                                    <img src={getLogoUrl(team.logo)} alt="" className="h-7 w-7 shrink-0 object-contain" />
+                                ) : (
+                                    <span className="h-7 w-7 shrink-0 rounded-full bg-white/5" />
                                 )}
-                            </div>
-                        </Link>
-                    ))
-                )
-                }
-            </div>
+                                <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{team.name}</span>
+                                <span className="shrink-0 text-xs text-gray-500">{team.points ?? 0} pkt</span>
+                            </Link>
+                        ))
+                    )}
+                </div>
+            </section>
+
+            <section className="overflow-hidden bg-bg">
+                <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Dzisiejsze mecze
+                </h2>
+                {matchesLoading ? (
+                    <p className="px-4 py-4 text-sm text-gray-400">Ładowanie meczów...</p>
+                ) : matchesError ? (
+                    <p className="px-4 py-4 text-sm text-red-300">{matchesError}</p>
+                ) : matches.length === 0 ? (
+                    <p className="px-4 py-4 text-sm text-gray-400">Brak dzisiejszych meczów.</p>
+                ) : (
+                    <div>
+                        {matches.map((match) => (
+                            <Link
+                                to="/match"
+                                state={{ id: match.id }}
+                                key={match.id}
+                                className="block px-3 py-3 hover:bg-white/[0.03]"
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="min-w-0 truncate text-xs font-semibold text-gray-300">
+                                        {match.league?.name ?? "Mecz"}
+                                    </span>
+                                    <time className="shrink-0 text-[11px] text-gray-500">
+                                        {match.time
+                                            ? new Date(match.time).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })
+                                            : "—"}
+                                    </time>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between gap-2 text-sm text-white">
+                                    <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
+                                    <span className="shrink-0 text-[10px] font-bold text-red-400">VS</span>
+                                    <span className="min-w-0 truncate text-right">{match.team_2?.name ?? "Drużyna 2"}</span>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                )}
+            </section>
         </aside>
     )
 }

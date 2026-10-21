@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import settingsIcon from "../assets/settings.svg";
+import addIcon from "../assets/add.svg";
+import acceptIcon from "../assets/accept.svg";
+import removeIcon from "../assets/remove.svg";
+import squadIcon from "../assets/squad.svg";
+import fileIcon from "../assets/file.svg";
+import clockIcon from "../assets/clock.svg";
+import warningIcon from "../assets/warning.svg";
+import inputIcon from "../assets/input.svg";
 
 const useSessionState = (key, initialValue) => {
     const [value, setValue] = useState(() => {
@@ -42,6 +51,15 @@ const teamPlayerIds = (team) =>
 const AdminPanel = () => {
     const [teams, setTeams] = useState([]);
     const [players, setPlayers] = useState([])
+    const [tournaments, setTournaments] = useState([]);
+    const [matches, setMatches] = useState([]);
+    const [selectedMatchId, setSelectedMatchId] = useState("");
+    const [matchForm, setMatchForm] = useState({
+        team_1_id: "",
+        team_2_id: "",
+        league: "",
+        time: "",
+    });
     const [logoFile, setLogoFile] = useState(null);
     const [pointsChange, setPointsChange] = useState(0);
     const [newPlayer, setNewPlayer] = useState("");
@@ -54,7 +72,7 @@ const AdminPanel = () => {
     const [editRoster, setEditRoster] = useState([])
 
 
-    const [rosterInputs, setRosterInputs] = useSessionState(
+    const [, setRosterInputs] = useSessionState(
         "admin-roster-inputs",
         emptyRoster
     );
@@ -106,7 +124,7 @@ const AdminPanel = () => {
     }, []);
 
     useEffect(() => {
-        loadTeams();
+        void Promise.resolve().then(loadTeams);
     }, [loadTeams]);
 
     const loadPlayers = useCallback(async () => {
@@ -134,8 +152,47 @@ const AdminPanel = () => {
     }, []);
 
     useEffect(() => {
-        loadPlayers();
+        void Promise.resolve().then(loadPlayers);
     }, [loadPlayers]);
+
+    const loadMatchesAndTournaments = useCallback(async () => {
+        const [matchesResult, tournamentsResult] = await Promise.all([
+            supabase
+                .from("matches")
+                .select(`
+                    id,
+                    time,
+                    team_1_id,
+                    team_2_id,
+                    league,
+                    team_1:teams!matches_team_1_id_fkey(name),
+                    team_2:teams!matches_team_2_id_fkey(name),
+                    tournament:tournaments!matches_league_fkey(name)
+                `)
+                .order("time", { ascending: false }),
+            supabase.from("tournaments").select("id, name").order("name"),
+        ]);
+
+        if (matchesResult.error) {
+            console.error("Error loading matches:", matchesResult.error.message);
+            showMessage(`Błąd ładowania meczów: ${matchesResult.error.message}`, "error");
+        } else {
+            setMatches(matchesResult.data ?? []);
+        }
+
+        if (tournamentsResult.error) {
+            console.error("Error loading tournaments:", tournamentsResult.error.message);
+            showMessage(`Błąd ładowania turniejów: ${tournamentsResult.error.message}`, "error");
+        } else {
+            setTournaments(tournamentsResult.data ?? []);
+        }
+
+        return !matchesResult.error && !tournamentsResult.error;
+    }, []);
+
+    useEffect(() => {
+        void Promise.resolve().then(loadMatchesAndTournaments);
+    }, [loadMatchesAndTournaments]);
 
     const resetEditor = () => {
         setSelectedTeamId("");
@@ -167,11 +224,6 @@ const AdminPanel = () => {
         });
 
         clearMessage();
-    };
-
-    const handlePlayerInputChange = (event, index) => {
-        const key = `player${index + 1}`;
-        setRosterInputs((prev) => ({ ...prev, [key]: event.target.value }));
     };
 
     const handleNewPlayerChange = (event, index) => {
@@ -444,9 +496,6 @@ const AdminPanel = () => {
             setLoading(false);
             return;
         }
-
-        const player = players.find((item) => String(item.steam_profile) === steam)
-
 
         if (team) {
             const { error: transferError } = await supabase
@@ -828,28 +877,128 @@ const AdminPanel = () => {
         });
     };
 
+    const resetMatchForm = () => {
+        setSelectedMatchId("");
+        setMatchForm({
+            team_1_id: "",
+            team_2_id: "",
+            league: "",
+            time: "",
+        });
+    };
+
+    const selectMatchToEdit = (event) => {
+        const matchId = event.target.value;
+        const match = matches.find((item) => String(item.id) === matchId);
+
+        setSelectedMatchId(matchId);
+
+        if (!match) {
+            resetMatchForm();
+            return;
+        }
+
+        const matchDate = match.time ? new Date(match.time) : null;
+        const localTime = matchDate && !Number.isNaN(matchDate.getTime())
+            ? new Date(matchDate.getTime() - matchDate.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16)
+            : "";
+
+        setMatchForm({
+            team_1_id: String(match.team_1_id ?? ""),
+            team_2_id: String(match.team_2_id ?? ""),
+            league: String(match.league ?? ""),
+            time: localTime,
+        });
+    };
+
+    const saveMatch = async (event) => {
+        event.preventDefault();
+
+        if (!matchForm.team_1_id || !matchForm.team_2_id || !matchForm.league || !matchForm.time) {
+            showMessage("Wybierz obie drużyny, turniej i termin meczu.", "error");
+            return;
+        }
+
+        if (matchForm.team_1_id === matchForm.team_2_id) {
+            showMessage("Drużyny w meczu muszą być różne.", "error");
+            return;
+        }
+
+        const matchTime = new Date(matchForm.time);
+        if (Number.isNaN(matchTime.getTime())) {
+            showMessage("Podany termin meczu jest nieprawidłowy.", "error");
+            return;
+        }
+
+        const matchData = {
+            team_1_id: matchForm.team_1_id,
+            team_2_id: matchForm.team_2_id,
+            league: matchForm.league,
+            time: matchTime.toISOString(),
+        };
+
+        setLoading(true);
+        clearMessage();
+
+        const result = selectedMatchId
+            ? await supabase.from("matches").update(matchData).eq("id", selectedMatchId)
+            : await supabase.from("matches").insert(matchData);
+
+        if (result.error) {
+            console.error("Error saving match:", result.error.message);
+            showMessage(`Błąd zapisu meczu: ${result.error.message}`, "error");
+            setLoading(false);
+            return;
+        }
+
+        const refreshed = await loadMatchesAndTournaments();
+        if (refreshed) {
+            resetMatchForm();
+            showMessage(
+                selectedMatchId ? "Mecz został zaktualizowany." : "Mecz został dodany.",
+                "success"
+            );
+        }
+
+        setLoading(false);
+    };
+
     return (
-        <div>
+        <section className="min-w-0">
+            <header className="mb-5 border-b border-white/10 pb-4">
+                <h1 className="flex items-center gap-2 text-2xl font-bold text-white sm:text-3xl">
+                    <img src={settingsIcon} alt="" aria-hidden="true" className="h-6 w-6 invert opacity-70" />
+                    Panel administratora
+                </h1>
+            </header>
             {
                 feedback.text && (
                     <p
                         role="status"
                         aria-live="polite"
-                        className={`mb-4 ${feedback.type === "error"
+                        className={`mb-4 flex items-center gap-2 ${feedback.type === "error"
                             ? "text-red-400"
                             : "text-green-400"
                             }`}
                     >
+                        <img
+                            src={feedback.type === "error" ? warningIcon : acceptIcon}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-4 w-4 invert"
+                        />
                         {feedback.text}
                     </p>
                 )
             }
-            <div className="mx-3 grid grid-cols-1 gap-4 sm:mx-4 lg:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
 
-                < form onSubmit={updateDatabase} className="border-2 border-red-700 rounded-md mt-4" >
-                    <h1 className="text-2xl font-bold text-white p-4 bg-red-700">
+                <form onSubmit={updateDatabase} className="min-w-0 border border-white/10 bg-bg">
+                    <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Edycja drużyny
-                    </h1>
+                    </h2>
                     <div className="p-4">
                         <div className="mb-4 mt-2">
                             <label htmlFor="team-select" className="text-white">
@@ -860,7 +1009,7 @@ const AdminPanel = () => {
                                 id="team-select"
                                 value={selectedTeamId}
                                 onChange={changeTeam}
-                                className="mt-2 w-full rounded-md bg-red-700 p-2 text-white sm:ms-4 sm:mt-0 sm:w-auto"
+                                className="mt-2 w-full border p-2 text-sm text-white sm:ms-4 sm:mt-0 sm:w-auto"
                             >
                                 <option value="">Wybierz drużynę</option>
 
@@ -889,13 +1038,14 @@ const AdminPanel = () => {
                                         onChange={(event) =>
                                             setUpdatedName(event.target.value)
                                         }
-                                        className="mb-4 mt-2 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                        className="mb-4 mt-2 w-full min-w-0 border p-2.5 text-white"
                                         required
                                     />
                                     <div>
                                         <label htmlFor="teamLogoInput" className="sr-only">Wybierz logo</label>
-                                        <label className="flex items-center justify-center px-4 py-3 bg-red-700 text-white text-sm rounded-lg cursor-pointer hover:opacity-90 transition-opacity mt-2">
-                                            Wybierz logo
+                                        <label className="mt-2 flex cursor-pointer items-center justify-center rounded border border-white/10 bg-bg-light px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-highlight">
+                                                    <img src={fileIcon} alt="" aria-hidden="true" className="mr-2 h-4 w-4 invert opacity-70" />
+                                                    Wybierz logo
                                             <input
                                                 type="file"
                                                 name="teamLogoInput"
@@ -908,7 +1058,8 @@ const AdminPanel = () => {
                                     </div>
                                 </div>
 
-                                <h2 className="text-white mb-2">
+                                <h2 className="mb-2 flex items-center gap-2 text-white">
+                                    <img src={squadIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
                                     Skład drużyny
                                 </h2>
 
@@ -918,7 +1069,7 @@ const AdminPanel = () => {
                                             key={index}
                                             value={editRoster[index] ?? ""}
                                             onChange={(event) => updateRoster(index, event.target.value)}
-                                            className="bg-red-700 rounded-md text-white p-2"
+                                            className="min-w-0 border p-2 text-sm"
                                         >
                                             <option value="">Wybierz gracza</option>
                                             {players.map((player) => (
@@ -936,34 +1087,40 @@ const AdminPanel = () => {
                             Zmień punkty (odejmij / dodaj)
                         </h2>
                         <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <input type="number" onBlur={(event) => { setPointsChange(prev => prev - Number(event.target.value)) }} name="reducePoints" className="mb-4 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse" />
-                            <input type="number" onBlur={(event) => { setPointsChange(prev => prev + Number(event.target.value)) }} name="increasePoints" className="mb-4 w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse" />
+                            <input type="number" onBlur={(event) => { setPointsChange(prev => prev - Number(event.target.value)) }} name="reducePoints" placeholder="Odejmij punkty" className="mb-4 w-full min-w-0 border p-2.5 text-center" />
+                            <input type="number" onBlur={(event) => { setPointsChange(prev => prev + Number(event.target.value)) }} name="increasePoints" placeholder="Dodaj punkty" className="mb-4 w-full min-w-0 border p-2.5 text-center" />
                         </div>
 
                         <div className="flex flex-wrap gap-3">
                             <button
                                 type="submit"
                                 disabled={loading || !selectedTeamId}
-                                className="hover:cursor-pointer hover:scale-95 transition-transform bg-success p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                {loading ? "Przetwarzanie..." : "Zapisz"}
+                                <span className="inline-flex items-center gap-2">
+                                    <img src={acceptIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                    {loading ? "Przetwarzanie..." : "Zapisz"}
+                                </span>
                             </button>
 
                             <button
                                 type="button"
                                 onClick={removeTeam}
                                 disabled={loading || !selectedTeamId}
-                                className="hover:scale-95 hover:cursor-pointer transition-transform bg-danger p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="cursor-pointer rounded border border-red-800/60 bg-transparent px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                Usuń drużynę
+                                <span className="inline-flex items-center gap-2">
+                                    <img src={removeIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-80" />
+                                    Usuń drużynę
+                                </span>
                             </button>
                         </div>
-                    </div >
-                </form >
-                <form className="flex flex-col gap-3 border-2 border-red-700 rounded-md mt-4" onSubmit={addTeam}>
-                    <h1 className="text-2xl font-bold text-white mb-4 p-4 bg-red-700">
+                    </div>
+                </form>
+                <form className="flex min-w-0 flex-col gap-3 border border-white/10 bg-bg" onSubmit={addTeam}>
+                    <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Dodanie drużyny
-                    </h1>
+                    </h2>
                     <div className="p-4">
                         <label
                             htmlFor="teamName"
@@ -977,7 +1134,7 @@ const AdminPanel = () => {
                             placeholder="Nazwa drużyny..."
                             value={newTeamName}
                             onChange={(event) => setNewTeamName(event.target.value)}
-                            className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                            className="w-full min-w-0 border p-2.5 text-white"
                             required
                         />
                         <h2 className="text-white mb-2 mt-2">
@@ -995,13 +1152,14 @@ const AdminPanel = () => {
                                     onChange={(event) =>
                                         handleNewPlayerChange(event, index)
                                     }
-                                    className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                    className="w-full min-w-0 border p-2.5 text-white"
                                 />
                             ))}
                         </div>
                         <div>
                             <label htmlFor="teamLogoInput" className="sr-only">Wybierz logo</label>
-                            <label className="flex items-center justify-center px-4 py-3 bg-red-700 text-white text-sm rounded-lg cursor-pointer hover:opacity-90 transition-opacity mt-4">
+                            <label className="mt-4 flex cursor-pointer items-center justify-center rounded border border-white/10 bg-bg-light px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-highlight">
+                                <img src={fileIcon} alt="" aria-hidden="true" className="mr-2 h-4 w-4 invert opacity-70" />
                                 Wybierz logo
                                 <input
                                     type="file"
@@ -1017,16 +1175,19 @@ const AdminPanel = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="hover:cursor-pointer mt-4 w-fit hover:scale-95 transition-transform bg-success p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="mt-4 w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            {loading ? "Przetwarzanie..." : "Dodaj drużynę"}
+                            <span className="inline-flex items-center gap-2">
+                                <img src={addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                {loading ? "Przetwarzanie..." : "Dodaj drużynę"}
+                            </span>
                         </button>
                     </div>
                 </form>
-                <form onSubmit={addPlayer} className="border-2 border-red-700 rounded-md mb-4">
-                    <h1 className="text-2xl font-bold text-white mb-4 p-4 bg-red-700">
+                <form onSubmit={addPlayer} className="mb-4 min-w-0 border border-white/10 bg-bg">
+                    <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Dodanie gracza
-                    </h1>
+                    </h2>
                     <div className="p-4">
                         <label htmlFor="new-player-name" className="block text-white mb-2">Nazwa gracza</label>
                         <input
@@ -1036,10 +1197,13 @@ const AdminPanel = () => {
                             placeholder="Nazwa gracza..."
                             value={newPlayer}
                             onChange={(event) => setNewPlayer(event.target.value)}
-                            className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                            className="w-full min-w-0 border p-2.5 text-white"
                             required
                         />
-                        <label htmlFor="new-player-steam" className="block text-white mb-2 mt-4">Link do steama</label>
+                        <label htmlFor="new-player-steam" className="mb-2 mt-4 flex items-center gap-2 text-white">
+                            <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                            Link do steama
+                        </label>
                         <input
                             id="new-player-steam"
                             type="text"
@@ -1047,7 +1211,7 @@ const AdminPanel = () => {
                             placeholder="Link do steama..."
                             value={newSteam}
                             onChange={(event) => setNewSteam(event.target.value)}
-                            className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                            className="w-full min-w-0 border p-2.5 text-white"
                             required
                         />
                         <label htmlFor="new-player-team" className="block text-white mb-2 mt-4">Drużyna</label>
@@ -1055,7 +1219,7 @@ const AdminPanel = () => {
                             id="new-player-team"
                             value={newPlayerTeam}
                             onChange={(event) => setNewPlayerTeam(event.target.value)}
-                            className="bg-red-700 rounded-md text-white p-2"
+                            className="border p-2 text-sm"
                         >
                             <option value="">Bez drużyny</option>
                             {teams.map((team) => (
@@ -1067,23 +1231,26 @@ const AdminPanel = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="hover:cursor-pointer mt-4 w-fit hover:scale-95 transition-transform bg-success p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="mt-4 w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            {loading ? "Przetwarzanie..." : "Dodaj gracza"}
+                            <span className="inline-flex items-center gap-2">
+                                <img src={addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                {loading ? "Przetwarzanie..." : "Dodaj gracza"}
+                            </span>
                         </button>
                     </div>
                 </form>
-                <form onSubmit={updatePlayer} className="border-2 border-red-700 rounded-md mb-4">
-                    <h1 className="text-2xl font-bold text-white mb-4 p-4 bg-red-700">
+                <form onSubmit={updatePlayer} className="mb-4 min-w-0 border border-white/10 bg-bg">
+                    <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Edytuj gracza
-                    </h1>
+                    </h2>
                     <div className="p-4">
                         <label htmlFor="edit-player-select" className="block text-white mb-2">Wybierz gracza</label>
                         <select
                             id="edit-player-select"
                             value={selectedPlayerId}
                             onChange={selectPlayer}
-                            className="bg-red-700 rounded-md text-white p-2"
+                            className="border p-2 text-sm"
                         >
                             <option value="">Wybierz gracza</option>
                             {players.map((player) => (
@@ -1101,16 +1268,19 @@ const AdminPanel = () => {
                                     type="text"
                                     value={updatedPlayerName}
                                     onChange={(event) => setUpdatedPlayerName(event.target.value)}
-                                    className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                    className="w-full min-w-0 border p-2.5 text-white"
                                     required
                                 />
-                                <label htmlFor="edit-player-steam" className="block text-white mb-2 mt-4">Link do steama</label>
+                                <label htmlFor="edit-player-steam" className="mb-2 mt-4 flex items-center gap-2 text-white">
+                                    <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                                    Link do steama
+                                </label>
                                 <input
                                     id="edit-player-steam"
                                     type="text"
                                     value={updatedPlayerSteam}
                                     onChange={(event) => setUpdatedPlayerSteam(event.target.value)}
-                                    className="w-full min-w-0 text-white border-2 border-white rounded-md text-center p-2 focus:animate-pulse"
+                                    className="w-full min-w-0 border p-2.5 text-white"
                                     required
                                 />
                                 <label htmlFor="edit-player-team" className="block text-white mb-2 mt-4">Drużyna</label>
@@ -1118,7 +1288,7 @@ const AdminPanel = () => {
                                     id="edit-player-team"
                                     value={updatedPlayerTeam}
                                     onChange={(event) => setUpdatedPlayerTeam(event.target.value)}
-                                    className="bg-red-700 rounded-md text-white p-2"
+                                    className="border p-2 text-sm"
                                 >
                                     <option value="">Bez drużyny</option>
                                     {teams.map((team) => (
@@ -1133,22 +1303,173 @@ const AdminPanel = () => {
                         <button
                             type="submit"
                             disabled={loading || !selectedPlayerId}
-                            className="hover:cursor-pointer mt-4 w-fit hover:scale-95 transition-transform bg-success p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="mt-4 w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            {loading ? "Przetwarzanie..." : "Zapisz zmiany"}
+                            <span className="inline-flex items-center gap-2">
+                                <img src={acceptIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                {loading ? "Przetwarzanie..." : "Zapisz zmiany"}
+                            </span>
                         </button>
                         <button
                             type="button"
                             onClick={removePlayer}
                             disabled={loading || !selectedPlayerId}
-                            className="hover:cursor-pointer mt-4 ml-3 w-fit hover:scale-95 transition-transform bg-danger p-2 rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="ml-3 mt-4 w-fit cursor-pointer rounded border border-red-800/60 bg-transparent px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            Usuń gracza
+                            <span className="inline-flex items-center gap-2">
+                                <img src={removeIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-80" />
+                                Usuń gracza
+                            </span>
                         </button>
                     </div>
                 </form>
-            </div >
-        </div >
+                <section className="min-w-0 border border-white/10 bg-bg xl:col-span-2">
+                    <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
+                        <img src={clockIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                        Mecze
+                    </h2>
+                    <div className="grid gap-5 p-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+                        <div className="min-w-0">
+                            <label htmlFor="match-to-edit" className="mb-2 block text-sm text-gray-300">
+                                Wybierz mecz do edycji
+                            </label>
+                            <select
+                                id="match-to-edit"
+                                value={selectedMatchId}
+                                onChange={selectMatchToEdit}
+                                className="w-full border p-2.5 text-sm"
+                            >
+                                <option value="">Dodaj nowy mecz</option>
+                                {matches.map((match) => (
+                                    <option key={match.id} value={String(match.id)}>
+                                        {match.team_1?.name ?? "Drużyna 1"} vs {match.team_2?.name ?? "Drużyna 2"}
+                                        {" · "}
+                                        {match.time
+                                            ? new Date(match.time).toLocaleString("pl-PL", {
+                                                dateStyle: "short",
+                                                timeStyle: "short",
+                                            })
+                                            : "Bez terminu"}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="mt-2 text-xs text-gray-500">
+                                Wybierz istniejący mecz, aby zmienić drużyny, turniej lub termin.
+                            </p>
+                        </div>
+
+                        <form onSubmit={saveMatch} className="grid min-w-0 gap-3 sm:grid-cols-2">
+                            <div className="min-w-0">
+                                <label htmlFor="match-team-1" className="mb-1 block text-xs text-gray-400">
+                                    Drużyna 1
+                                </label>
+                                <select
+                                    id="match-team-1"
+                                    value={matchForm.team_1_id}
+                                    onChange={(event) => setMatchForm((current) => ({
+                                        ...current,
+                                        team_1_id: event.target.value,
+                                    }))}
+                                    className="w-full border p-2.5 text-sm"
+                                    required
+                                >
+                                    <option value="">Wybierz drużynę</option>
+                                    {teams.map((team) => (
+                                        <option key={team.id} value={String(team.id)}>{team.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="min-w-0">
+                                <label htmlFor="match-team-2" className="mb-1 block text-xs text-gray-400">
+                                    Drużyna 2
+                                </label>
+                                <select
+                                    id="match-team-2"
+                                    value={matchForm.team_2_id}
+                                    onChange={(event) => setMatchForm((current) => ({
+                                        ...current,
+                                        team_2_id: event.target.value,
+                                    }))}
+                                    className="w-full border p-2.5 text-sm"
+                                    required
+                                >
+                                    <option value="">Wybierz drużynę</option>
+                                    {teams.map((team) => (
+                                        <option key={team.id} value={String(team.id)}>{team.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="min-w-0">
+                                <label htmlFor="match-tournament" className="mb-1 block text-xs text-gray-400">
+                                    Turniej
+                                </label>
+                                <select
+                                    id="match-tournament"
+                                    value={matchForm.league}
+                                    onChange={(event) => setMatchForm((current) => ({
+                                        ...current,
+                                        league: event.target.value,
+                                    }))}
+                                    className="w-full border p-2.5 text-sm"
+                                    required
+                                >
+                                    <option value="">Wybierz turniej</option>
+                                    {tournaments.map((tournament) => (
+                                        <option key={tournament.id} value={String(tournament.id)}>
+                                            {tournament.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="min-w-0">
+                                <label htmlFor="match-time" className="mb-1 flex items-center gap-1.5 text-xs text-gray-400">
+                                    <img src={clockIcon} alt="" aria-hidden="true" className="h-3.5 w-3.5 invert opacity-60" />
+                                    Data i godzina
+                                </label>
+                                <input
+                                    id="match-time"
+                                    type="datetime-local"
+                                    value={matchForm.time}
+                                    onChange={(event) => setMatchForm((current) => ({
+                                        ...current,
+                                        time: event.target.value,
+                                    }))}
+                                    className="w-full border p-2.5 text-sm"
+                                    required
+                                />
+                            </div>
+                            <div className="flex flex-wrap gap-2 sm:col-span-2">
+                                <button
+                                    type="submit"
+                                    disabled={loading || teams.length < 2 || tournaments.length === 0}
+                                    className="rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <span className="inline-flex items-center gap-2">
+                                        <img
+                                            src={selectedMatchId ? acceptIcon : addIcon}
+                                            alt=""
+                                            aria-hidden="true"
+                                            className="h-4 w-4 invert"
+                                        />
+                                        {loading ? "Zapisywanie..." : selectedMatchId ? "Zapisz zmiany" : "Dodaj mecz"}
+                                    </span>
+                                </button>
+                                {selectedMatchId && (
+                                    <button
+                                        type="button"
+                                        onClick={resetMatchForm}
+                                        disabled={loading}
+                                        className="rounded border border-white/10 px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-50"
+                                    >
+                                        Anuluj edycję
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </div>
+        </section>
     );
 };
 

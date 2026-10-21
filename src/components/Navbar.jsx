@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import logo from "../assets/logo.jpg";
+import logo from "../assets/logo.png";
 
 const getUserName = (user) => {
     return (
@@ -13,13 +13,11 @@ const getUserName = (user) => {
     );
 };
 
-const getUserAvatar = (user) => {
-    return (
-        user?.user_metadata?.avatar_url ||
-        user?.user_metadata?.picture ||
-        null
-    );
-};
+const getUserAvatar = (user) => (
+    user?.user_metadata?.avatar_url ||
+    user?.user_metadata?.picture ||
+    null
+);
 
 const saveUserProfile = async (user) => {
     if (!user) return;
@@ -158,39 +156,43 @@ const Navbar = () => {
         }
     };
 
-    const displayName = getUserName(user);
-    const avatarUrl = getUserAvatar(user);
-
     return (
-        <nav className="bg-red-700 py-3 text-white sm:py-4">
-            <div className="container mx-auto px-4">
-                <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
-
-                    <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-start sm:gap-2">
+        <nav className="w-full py-3 text-white sm:py-4">
+            <div className="mx-auto max-w-[1600px] px-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-between sm:gap-5">
+                    <div className="flex min-w-0 items-center">
+                        <Link to="/" className="flex shrink-0 items-center gap-2">
+                            <img src={logo} alt="" className="h-9 w-9 invert object-contain sm:h-10 sm:w-10" />
+                            <span className="text-sm font-black tracking-wide sm:text-base">
+                                PODZIEMIE
+                            </span>
+                        </Link>
+                    </div>
+                    <div className="order-3 -mx-1 flex w-full items-center gap-1 overflow-x-auto sm:order-none sm:mx-0 sm:w-auto sm:gap-2">
                         <Link
                             to="/"
-                            className="hover:text-gray-300 p-2 rounded-md"
+                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
                         >
-                            Home
+                            Start
                         </Link>
 
                         <Link
                             to="/ranking"
-                            className="hover:text-gray-300 p-2 rounded-md"
+                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
                         >
                             Ranking
                         </Link>
 
                         <Link
                             to="/players"
-                            className="hover:text-gray-300 p-2 rounded-md"
+                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
                         >
                             Gracze
                         </Link>
 
                         <Link
                             to="/contact"
-                            className="hover:text-gray-300 p-2 rounded-md"
+                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
                         >
                             Kontakt
                         </Link>
@@ -221,13 +223,13 @@ const Navbar = () => {
                             </span>
                         </div>
                     )} */}
-                    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end sm:gap-4">
+                    <div className="ml-auto flex flex-wrap items-center justify-center gap-2 sm:justify-end sm:gap-4">
                         {profile?.role === "admin" && (
                             <div>
                                 <div className="rounded-full bg-green-600"></div>
                                 <Link
                                     to="/admin-panel"
-                                    className="inline-block shrink-0 rounded bg-secondary px-3 py-2 text-center text-sm font-bold text-white transition-transform duration-200 hover:scale-95 sm:px-4 sm:text-base"
+                                    className="inline-block shrink-0 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-center text-sm font-bold text-white transition-colors hover:bg-white/10 sm:px-4"
                                 >
                                     Panel Admina
                                 </Link>
@@ -236,7 +238,7 @@ const Navbar = () => {
 
                         <button
                             type="button"
-                            className="shrink-0 rounded bg-primary px-3 py-2 text-sm font-bold text-white transition-transform hover:scale-95 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-base"
+                            className="shrink-0 rounded-md bg-red-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
                             onClick={user ? logout : login}
                             disabled={!authReady}
                         >

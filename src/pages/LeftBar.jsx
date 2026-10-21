@@ -1,173 +1,191 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { Link } from "react-router-dom"
+import squadIcon from "../assets/squad.svg";
+import clockIcon from "../assets/clock.svg";
+
+const getLogoUrl = (logo) => {
+    if (!logo) return null;
+
+    return supabase.storage.from("logos").getPublicUrl(logo).data.publicUrl;
+};
+
+const getTournamentDate = (tournament) => {
+    const dateField = ["start_date", "starts_at", "start_time", "date", "time", "begin_at"]
+        .find((field) => tournament[field]);
+
+    if (!dateField) return null;
+
+    const date = new Date(tournament[dateField]);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
 
 const LeftBar = () => {
     const [transfers, setTransfers] = useState([]);
-
-    const arrowRightUrl = supabase.storage
-        .from("icons")
-        .getPublicUrl("arrow-right.svg").data.publicUrl;
+    const [tournaments, setTournaments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [transfersError, setTransfersError] = useState("");
+    const [tournamentsError, setTournamentsError] = useState("");
 
     useEffect(() => {
-        const loadRecentTransfers = async () => {
-            const { data, error } = await supabase
-                .from("transfers")
-                .select(`
-          player_id,
-          from_id,
-          to_id,
-          created_at,
-          players!transfers_player_id_fkey (
-            name
-          ),
-          from_team:teams!transfers_from_id_fkey (
-            name,
-            logo
-          ),
-          to_team:teams!transfers_to_id_fkey (
-            name,
-            logo
-          )
-        `)
-                .order("created_at", { ascending: false })
-                .limit(5);
+        let active = true;
 
-            if (error) {
-                console.error("Error loading transfers:", error.message);
-                return;
+        const loadSidebarData = async () => {
+            setLoading(true);
+
+            const [transfersResult, tournamentsResult] = await Promise.all([
+                supabase
+                    .from("transfers")
+                    .select(`
+                        player_id,
+                        from_team:teams!transfers_from_id_fkey (
+                            name,
+                            logo
+                        ),
+                        to_team:teams!transfers_to_id_fkey (
+                            name,
+                            logo
+                        ),
+                        players!transfers_player_id_fkey (
+                            name
+                        )
+                    `)
+                    .order("created_at", { ascending: false })
+                    .limit(5),
+                supabase.from("tournaments").select("*"),
+            ]);
+
+            if (!active) return;
+
+            if (transfersResult.error) {
+                console.error("Error loading transfers:", transfersResult.error.message);
+                setTransfersError("Nie udało się załadować transferów.");
+            } else {
+                setTransfersError("");
+            }
+            if (tournamentsResult.error) {
+                console.error("Error loading tournaments:", tournamentsResult.error.message);
+                setTournamentsError("Nie udało się załadować turniejów.");
+            } else {
+                setTournamentsError("");
             }
 
-            setTransfers(data ?? []);
+            setTransfers(transfersResult.data ?? []);
+            setTournaments(tournamentsResult.data ?? []);
+            setLoading(false);
         };
 
-        loadRecentTransfers();
+        loadSidebarData();
+
+        return () => {
+            active = false;
+        };
     }, []);
 
-    const getLogoUrl = (logo) => {
-        if (!logo) return null;
+    const upcomingTournaments = useMemo(() => {
+        const now = new Date();
 
-        return supabase.storage
-            .from("logos")
-            .getPublicUrl(logo)
-            .data.publicUrl;
+        return tournaments
+            .map((tournament) => ({ tournament, date: getTournamentDate(tournament) }))
+            .filter(({ tournament, date }) => {
+                if (!date) return true;
+
+                const endDate = tournament.end_date ? new Date(tournament.end_date) : date;
+                return endDate >= now;
+            })
+            .sort((first, second) => {
+                if (!first.date) return 1;
+                if (!second.date) return -1;
+                return first.date - second.date;
+            })
+            .slice(0, 5);
+    }, [tournaments]);
+
+    const formatTournamentDate = (date) => {
+        if (!date) return "Termin do ustalenia";
+
+        return new Intl.DateTimeFormat("pl-PL", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+        }).format(date);
     };
 
-    const noTeamUrl = supabase.storage.from("icons").getPublicUrl("none.svg").data.publicUrl;
-
     return (
-        <aside className="w-full min-w-0 p-3 sm:p-4">
-            {/* <div className="space-y-3">
-                {transfers.length === 0 ? (
-                    <p className="text-sm text-gray-400">
-                        No recent transfers.
-                    </p>
+        <aside className="min-w-0 space-y-4 p-3 sm:p-4">
+            <section className="overflow-hidden bg-bg">
+                <h2 className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <img src={squadIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
+                    Transfery
+                </h2>
+                {loading ? (
+                    <p className="px-4 py-5 text-sm text-gray-400">Ładowanie transferów...</p>
+                ) : transfersError ? (
+                    <p role="status" className="px-4 py-5 text-sm text-red-300">{transfersError}</p>
+                ) : transfers.length === 0 ? (
+                    <p className="px-4 py-5 text-sm text-gray-400">Brak ostatnich transferów.</p>
                 ) : (
-                    transfers.map((transfer, index) => (
-
-                        <div
-                            key={`${transfer.player_id}-${transfer.created_at}-${index}`}
-                            className="rounded-md border-2 border-red-700 p-4 text-white shadow-md flex flex-row justify-between"
-                        >
-                            {transfer.from_team?.logo && (
-                                <img
-                                    src={getLogoUrl(transfer.from_team.logo)}
-                                    alt={transfer.from_team.name ?? "Previous team"}
-                                    className="w-15 h-15 object-contain"
-                                />
-                            )}
-                            {!transfer.from_team?.logo && (
-                                <img
-                                    src={noTeamUrl}
-                                    alt="Previous team"
-                                    className="w-15 h-15 object-contain invert"
-                                />
-                            )}
-                            <div className="flex flex-col items-center">
-                                <p className="font-bold text-center">
-                                    {transfer.players?.name ?? "Unknown player"}
-                                </p>
-                                <img
-                                    src={arrowRightUrl}
-                                    alt="to"
-                                    className="invert w-8 h-8"
-                                />
-                            </div>
-                            {transfer.to_team?.logo && (
-                                <img
-                                    src={getLogoUrl(transfer.to_team.logo)}
-                                    alt={transfer.to_team.name ?? "New team"}
-                                    className="w-15 h-15 object-contain"
-                                />
-                            )}
-                            {!transfer.to_team?.logo && (
-                                <img
-                                    src={noTeamUrl}
-                                    alt="New team"
-                                    className="w-15 h-15 object-contain invert"
-                                />
-                            )}
-
-                        </div>
-
-                    ))
-                )}
-            </div> */}
-            <h1 className="mt-2 mb-4 text-lg font-bold text-white sm:mt-4 sm:text-xl">Ostatnie transfery:</h1>
-            <div>
-                {transfers.length === 0 ? (
-                    <p className="text-white">No transfers found</p>
-                ) : (
-
-
-                    transfers.map((transfer, index) => (
-                        <Link to="/player" state={{ id: transfer.player_id }} key={index}>
-                            <div className="flex w-full min-w-0 flex-row items-center justify-between gap-2 border-b-2 border-red-700 bg-bg p-3 hover:bg-bg-light sm:gap-4 sm:p-4" key={index}>
-                                {transfer.from_team?.logo && (
-                                    <img
-                                        src={getLogoUrl(transfer.from_team.logo)}
-                                        alt={transfer.from_team.name ?? "Previous team"}
-                                        className="h-6 w-6 shrink-0 object-contain"
-                                    />
-                                )}
-                                {!transfer.from_team?.logo && (
-                                    <img
-                                        src={noTeamUrl}
-                                        alt="Previous team"
-                                        className="h-6 w-6 shrink-0 object-contain invert"
-                                    />
-                                )}
-                                <div className="flex min-w-0 flex-col items-center">
-                                    <p className="max-w-full truncate text-center font-bold text-white">
-                                        {transfer.players?.name ?? "Unknown player"}
-                                    </p>
-                                    {/* <img
-                                    src={arrowRightUrl}
-                                    alt="to"
-                                    className="invert w-6 h-6"
-                                /> */}
+                    <div>
+                        {transfers.map((transfer, index) => (
+                            <Link
+                                to="/player"
+                                state={{ id: transfer.player_id }}
+                                key={`${transfer.player_id}-${index}`}
+                                className="flex min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-white/[0.03]"
+                            >
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-black/30">
+                                    {getLogoUrl(transfer.from_team?.logo) ? (
+                                        <img src={getLogoUrl(transfer.from_team.logo)} alt="" className="h-6 w-6 object-contain" />
+                                    ) : (
+                                        <span className="text-xs text-gray-500">—</span>
+                                    )}
                                 </div>
-                                {transfer.to_team?.logo && (
-                                    <img
-                                        src={getLogoUrl(transfer.to_team.logo)}
-                                        alt={transfer.to_team.name ?? "New team"}
-                                        className="h-6 w-6 shrink-0 object-contain"
-                                    />
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-semibold text-white">
+                                        {transfer.players?.name ?? "Nieznany gracz"}
+                                    </p>
+                                    <p className="truncate text-[11px] text-gray-500">
+                                        {transfer.from_team?.name ?? "Bez drużyny"} → {transfer.to_team?.name ?? "Bez drużyny"}
+                                    </p>
+                                </div>
+                                {getLogoUrl(transfer.to_team?.logo) ? (
+                                    <img src={getLogoUrl(transfer.to_team.logo)} alt="" className="h-7 w-7 shrink-0 object-contain" />
+                                ) : (
+                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-black/30 text-xs text-gray-500">—</span>
                                 )}
-                                {!transfer.to_team?.logo && (
-                                    <img
-                                        src={noTeamUrl}
-                                        alt="New team"
-                                        className="h-6 w-6 shrink-0 object-contain invert"
-                                    />
-                                )}
+                            </Link>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            <section className="overflow-hidden bg-bg">
+                <h2 className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <img src={clockIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
+                    Nadchodzące turnieje
+                </h2>
+                {loading ? (
+                    <p className="px-4 py-5 text-sm text-gray-400">Ładowanie turniejów...</p>
+                ) : tournamentsError ? (
+                    <p role="status" className="px-4 py-5 text-sm text-red-300">{tournamentsError}</p>
+                ) : upcomingTournaments.length === 0 ? (
+                    <p className="px-4 py-5 text-sm text-gray-400">Brak nadchodzących turniejów.</p>
+                ) : (
+                    <div>
+                        {upcomingTournaments.map(({ tournament, date }) => (
+                            <div key={tournament.id} className="px-3 py-3">
+                                <p className="truncate text-sm font-semibold text-white">
+                                    {tournament.name ?? tournament.title ?? "Turniej"}
+                                </p>
+                                <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                                    <img src={clockIcon} alt="" aria-hidden="true" className="h-3 w-3 invert opacity-50" />
+                                    {formatTournamentDate(date)}
+                                </p>
                             </div>
-                        </Link>
-                    ))
-                )
-                }
-            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
         </aside>
     );
 };

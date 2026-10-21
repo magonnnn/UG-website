@@ -1,7 +1,7 @@
 import Navbar from "./Navbar";
 const Header = () => {
     return (
-        <header className="bg-red-700 text-white py-4">
+        <header className="sticky top-0 z-20 bg-[#17191e] text-white">
             <Navbar />
         </header>
     )

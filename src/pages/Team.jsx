@@ -1,7 +1,7 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { Link } from "react-router-dom";
+
 const Team = () => {
     const location = useLocation();
     const teamId = location.state?.id;
@@ -9,70 +9,197 @@ const Team = () => {
     const [teams, setTeams] = useState([]);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
+    const [matches, setMatches] = useState([]);
+    const [matchesError, setMatchesError] = useState("");
 
     useEffect(() => {
-        async function fetchTeams() {
-            const { data, error } = await supabase.from("teams").select("*").eq("id", teamId);
+        let active = true;
 
-            if (error) {
-                setError(error.message);
+        async function fetchTeams() {
+            if (teamId == null) {
+                setError("Nie wybrano drużyny.");
+                setLoading(false);
+                return;
+            }
+
+            setLoading(true);
+            const [teamResult, firstTeamMatches, secondTeamMatches] = await Promise.all([
+                supabase.from("teams").select("*").eq("id", teamId),
+                supabase
+                    .from("matches")
+                    .select(`
+                        id,
+                        time,
+                        league:tournaments!matches_league_fkey(name),
+                        team_1:teams!matches_team_1_id_fkey(name, logo),
+                        team_2:teams!matches_team_2_id_fkey(name, logo)
+                    `)
+                    .eq("team_1_id", teamId),
+                supabase
+                    .from("matches")
+                    .select(`
+                        id,
+                        time,
+                        league:tournaments!matches_league_fkey(name),
+                        team_1:teams!matches_team_1_id_fkey(name, logo),
+                        team_2:teams!matches_team_2_id_fkey(name, logo)
+                    `)
+                    .eq("team_2_id", teamId),
+            ]);
+
+            if (!active) return;
+
+            if (teamResult.error) {
+                console.error("Error loading team:", teamResult.error.message);
+                setError(teamResult.error.message);
             } else {
-                setTeams(data ?? []);
+                setTeams(teamResult.data ?? []);
+                setError("");
+            }
+
+            if (firstTeamMatches.error || secondTeamMatches.error) {
+                const matchQueryError = firstTeamMatches.error ?? secondTeamMatches.error;
+                console.error("Error loading team matches:", matchQueryError.message);
+                setMatchesError("Nie udało się załadować meczów drużyny.");
+            } else {
+                const uniqueMatches = new Map(
+                    [...(firstTeamMatches.data ?? []), ...(secondTeamMatches.data ?? [])]
+                        .map((match) => [match.id, match])
+                );
+                setMatches(
+                    [...uniqueMatches.values()].sort(
+                        (first, second) => new Date(second.time ?? 0) - new Date(first.time ?? 0)
+                    )
+                );
+                setMatchesError("");
             }
 
             setLoading(false);
         }
 
         fetchTeams();
+
+        return () => {
+            active = false;
+        };
     }, [teamId]);
 
+    const team = teams[0];
     const profileUrl = supabase.storage.from("icons").getPublicUrl("profile-default.svg").data.publicUrl;
-    const logoUrl = teams[0]?.logo
-        ? supabase.storage
-            .from("logos")
-            .getPublicUrl(teams[0].logo).data.publicUrl
+    const logoUrl = team?.logo
+        ? supabase.storage.from("logos").getPublicUrl(team.logo).data.publicUrl
         : null;
+    const roster = team?.roster ?? [];
 
-    const roster = teams[0]?.roster ?? [];
+    if (loading) {
+        return <p className="py-8 text-center text-sm text-gray-400">Ładowanie profilu drużyny...</p>;
+    }
 
+    if (error || !team) {
+        return (
+            <p role="status" className="my-6 border border-white/10 bg-bg p-4 text-sm text-red-300">
+                {error || "Nie znaleziono drużyny."}
+            </p>
+        );
+    }
 
     return (
-        <div className="mt-4 mb-4 grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)]">
-            <div className="border-2 border-red-700 rounded-md">
-                <h1 className="text-2xl font-bold text-white p-4 bg-red-700 text-center">
-                    Profil
-                </h1>
-                <div className="flex flex-col items-center">
-                    <img src={logoUrl} alt={`${teamId} logo`} className="w-30 h-30 rounded-full mb-6 mt-6" />
-                    <hr className="text-red-700 w-full"></hr>
-                    <h1 className="text-3xl font-bold mb-4 text-white mt-4">{teams[0]?.name}</h1>
-                </div>
-                <hr className="text-red-700 w-full"></hr>
-            </div>
-            <div className="border-2 border-red-700 rounded-md">
-                <h1 className="text-2xl font-bold text-white p-4 bg-red-700 text-center">
-                    Mecze
-                </h1>
-            </div>
-            <div className="border-2 border-red-700 rounded-md">
-                <h1 className="text-2xl font-bold text-white p-4 bg-red-700 text-center">
-                    Skład
-                </h1>
-                <div className="grid grid-rows-5">
-                    {roster.map((player, i) => {
-                        const playerId = teams[0]?.[`player${i + 1}`];
+        <section className="min-w-0">
+            <header className="mb-6">
+                <h1 className="break-words text-2xl font-bold text-white sm:text-3xl">{team.name}</h1>
+            </header>
 
-                        return <div key={i} className="bg-bg-light text-white text-center font-bold hover:bg-rose-800 transition-colors flex flex-col items-center justify-center hover:cursor-pointer">
-                            <Link to="/player" state={{ id: playerId }} className="w-full flex flex-col items-center justify-center">
-                                <img src={profileUrl} alt={`${player} avatar`} className="w-30 h-30 rounded-full mb-2 invert mb-6 mt-6" />
-                                <p className="font-bold bg-white text-black w-full p-4">{player}</p>
-                            </Link>
+            <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+                <section className="min-w-0 bg-bg">
+                    <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Profil
+                    </h2>
+                    <div className="flex flex-col items-center px-4 py-7">
+                        {logoUrl ? (
+                            <img src={logoUrl} alt={`${team.name} logo`} className="h-24 w-24 object-contain" />
+                        ) : (
+                            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-bg-light text-3xl font-bold text-gray-500">
+                                {team.name?.charAt(0)?.toUpperCase() ?? "?"}
+                            </div>
+                        )}
+                        <h2 className="mt-4 break-words text-center text-xl font-bold text-white">{team.name}</h2>
+                        <p className="mt-2 text-sm text-gray-400">
+                            <span className="font-semibold tabular-nums text-white">{team.points ?? 0}</span> pkt
+                        </p>
+                    </div>
+                </section>
+
+                <section className="min-w-0 bg-bg">
+                    <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Skład drużyny
+                    </h2>
+                    {roster.length ? (
+                        <div className="space-y-1">
+                            {roster.map((player, index) => {
+                                const playerId = team[`player${index + 1}`];
+
+                                return (
+                                    <Link
+                                        to="/player"
+                                        state={{ id: playerId }}
+                                        key={`${playerId ?? player}-${index}`}
+                                        className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                                    >
+                                        <img src={profileUrl} alt="" className="h-9 w-9 shrink-0 rounded-full bg-bg-light p-1.5 opacity-80" />
+                                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{player}</span>
+                                        <span className="text-xs text-gray-600">{String(index + 1).padStart(2, "0")}</span>
+                                    </Link>
+                                );
+                            })}
                         </div>
-                    })}
-                </div>
+                    ) : (
+                        <p className="px-4 py-5 text-sm text-gray-500">Brak graczy w składzie.</p>
+                    )}
+                </section>
+
+                <section className="min-w-0 bg-bg lg:col-span-2">
+                    <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Mecze
+                    </h2>
+                    {matchesError ? (
+                        <p role="status" className="px-4 py-5 text-sm text-red-300">{matchesError}</p>
+                    ) : matches.length === 0 ? (
+                        <p className="px-4 py-5 text-sm text-gray-500">Brak dostępnych meczów drużyny.</p>
+                    ) : (
+                        <div className="space-y-1">
+                            {matches.map((match) => (
+                                <Link
+                                    to="/match"
+                                    state={{ id: match.id }}
+                                    key={match.id}
+                                    className="flex min-w-0 flex-col gap-2 px-4 py-3 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="truncate text-xs font-medium text-gray-500">
+                                            {match.league?.name ?? "Mecz"}
+                                        </p>
+                                        <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
+                                            <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
+                                            <span className="shrink-0 text-[10px] font-bold text-red-400">VS</span>
+                                            <span className="min-w-0 truncate">{match.team_2?.name ?? "Drużyna 2"}</span>
+                                        </div>
+                                    </div>
+                                    <time className="shrink-0 text-xs text-gray-500">
+                                        {match.time
+                                            ? new Date(match.time).toLocaleString("pl-PL", {
+                                                dateStyle: "medium",
+                                                timeStyle: "short",
+                                            })
+                                            : "Termin do ustalenia"}
+                                    </time>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </section>
             </div>
-        </div>
-    )
-}
+        </section>
+    );
+};
 
 export default Team;

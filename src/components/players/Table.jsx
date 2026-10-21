@@ -2,124 +2,153 @@
 import Row from "./Row.jsx";
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import filterIcon from "../../assets/filter.svg";
 
 const Table = () => {
-    const [users, setUsers] = useState([]);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [teams, setTeams] = useState([]);
     const [players, setPlayers] = useState([]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedTeam, setSelectedTeam] = useState("");
 
     useEffect(() => {
-        async function fetchTeams() {
-            const { data, error } = await supabase
-                .from("teams")
-                .select(`
+        let active = true;
+
+        async function fetchDirectory() {
+            const [teamsResult, playersResult] = await Promise.all([
+                supabase
+                    .from("teams")
+                    .select(`
                         id,
                         name,
                         logo,
                         roster
-                    `);
+                    `),
+                supabase
+                    .from("players")
+                    .select(`
+                    id,
+                    name,
+                    current_team:teams!players_current_team_fkey(
+                        id,
+                        name
+                    )
+                    `),
+            ]);
 
-            if (error) {
-                setError(error.message);
-            } else {
-                setTeams(data ?? []);
+            if (!active) return;
+
+            if (teamsResult.error) {
+                console.error("Error loading teams for player filters:", teamsResult.error.message);
+            }
+            if (playersResult.error) {
+                console.error("Error loading players:", playersResult.error.message);
             }
 
+            if (teamsResult.error || playersResult.error) {
+                setError(
+                    [teamsResult.error?.message, playersResult.error?.message]
+                        .filter(Boolean)
+                        .join("; ")
+                );
+            } else {
+                setTeams(teamsResult.data ?? []);
+                setPlayers(playersResult.data ?? []);
+                setError("");
+            }
             setLoading(false);
         }
 
-        fetchTeams();
+        fetchDirectory();
+
+        return () => {
+            active = false;
+        };
     }, []);
 
-    useEffect(() => {
-        async function fetchPlayers() {
-            const { data, error } = await supabase
-                .from("players")
-                .select(`
-id,
-    name,
-    current_team: teams!players_current_team_fkey(
-        name
-    )
-        `);
+    const filteredPlayers = players.filter((player) => {
+        const matchesName = player.name?.toLocaleLowerCase("pl-PL")
+            .includes(searchQuery.trim().toLocaleLowerCase("pl-PL"));
+        const matchesTeam = !selectedTeam || String(player.current_team?.id ?? "") === selectedTeam;
 
-            if (error) {
-                setError(error.message);
-            } else {
-                setPlayers(data ?? []);
-            }
-
-            setLoading(false);
-        }
-
-        fetchPlayers();
-    }, []);
+        return matchesName && matchesTeam;
+    });
 
     return (
-        <div>
-            <form className="mt-4 flex w-full flex-col gap-2 px-1 sm:px-0">
-                <label
-                    htmlFor="search"
-                    className="text-white"
-                >
-                    Wyszukaj gracza
-                </label>
+        <section className="min-w-0">
+            <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+                <div>
+                    <h1 className="text-2xl font-bold text-white sm:text-3xl">Gracze</h1>
+                </div>
+                <div className="grid w-full gap-3 sm:max-w-md sm:grid-cols-2">
+                    <div className="flex min-w-0 flex-col gap-1">
+                        <label htmlFor="search" className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
+                            <img src={filterIcon} alt="" aria-hidden="true" className="h-3.5 w-3.5 invert opacity-60" />
+                            Wyszukaj gracza
+                        </label>
+                        <input
+                            type="text"
+                            id="search"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Nazwa gracza"
+                            className="w-full min-w-0 border p-2.5 text-sm"
+                        />
+                    </div>
+                    <div className="flex min-w-0 flex-col gap-1">
+                        <label htmlFor="team-select" className="text-xs font-medium text-gray-400">Drużyna</label>
+                        <select
+                            className="w-full min-w-0 border p-2.5 text-sm"
+                            id="team-select"
+                            value={selectedTeam}
+                            onChange={(event) => setSelectedTeam(event.target.value)}
+                        >
+                            <option value="">Wszystkie drużyny</option>
+                            {teams.map((team) => (
+                                <option key={team.id} value={team.id}>
+                                    {team.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-                <input
-                    type="text"
-                    id="search"
-                    placeholder="Wyszukaj gracza..."
-                    className="w-full min-w-0 rounded-md border border-gray-300 p-2 text-white"
-                />
-
-                <label
-                    htmlFor="team-select"
-                    className="mt-2 text-white sm:mt-0"
-                >
-                    Wybierz drużynę
-                </label>
-
-                <select
-                    className="w-full min-w-0 rounded-md border border-gray-300 p-2 text-white"
-                    id="team-select"
-                >
-                    <option value="">Wszystkie drużyny</option>
-
-                    {users.map((user) => (
-                        <option key={user.id} value={user.team_id}>
-                            {user.teams?.name}
-                        </option>
-                    ))}
-                </select>
-            </form>
-
-            <table className="mt-2 w-full table-auto border-separate border-spacing-y-3 sm:border-spacing-y-4">
+            <div className="overflow-x-auto">
+                <table className="w-full min-w-[320px] border-collapse text-left">
+                    <thead>
+                        <tr className="border-b border-white/10 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                            <th className="px-3 py-3 font-semibold">Gracz</th>
+                            <th className="px-3 py-3 text-right font-semibold">Drużyna</th>
+                        </tr>
+                    </thead>
                 <tbody>
                     {loading && (
                         <tr>
-                            <td colSpan="2">Loading users...</td>
+                            <td colSpan="2" className="px-3 py-8 text-center text-sm text-gray-400">Ładowanie graczy...</td>
                         </tr>
                     )}
 
                     {error && (
                         <tr>
-                            <td colSpan="2">
-                                Error loading users: {error}
+                            <td colSpan="2" className="px-3 py-8 text-center text-sm text-red-300">
+                                Błąd ładowania graczy: {error}
                             </td>
                         </tr>
                     )}
 
-                    {!loading && !error && players.length === 0 && (
+                    {!loading && !error && filteredPlayers.length === 0 && (
                         <tr>
-                            <td colSpan="2">No players found</td>
+                            <td colSpan="2" className="px-3 py-8 text-center text-sm text-gray-400">
+                                {players.length === 0 ? "Nie znaleziono graczy." : "Brak graczy pasujących do wyszukiwania."}
+                            </td>
                         </tr>
                     )}
 
                     {!loading &&
                         !error &&
-                        players.map((player) => (
+                        filteredPlayers.map((player) => (
                             <Row
                                 key={player.id}
                                 name={player.name}
@@ -128,8 +157,9 @@ id,
                             />
                         ))}
                 </tbody>
-            </table>
-        </div>
+                </table>
+            </div>
+        </section>
     );
 };
 

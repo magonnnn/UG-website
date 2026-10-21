@@ -1,25 +1,66 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Barlow:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 @import "tailwindcss";
 
 * {
-  font-family: "Inter", sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   scroll-behavior: smooth;
 }
 
 @theme {
-  --color-bg-dark: oklch(0.1 0.1 20);
-  --color-bg: oklch(0.15 0.1 20);
-  --color-bg-light: oklch(0.2 0.1 20);
-  --color-text: oklch(0.96 0.1 20);
-  --color-text-muted: oklch(0.76 0.1 20);
-  --color-highlight: oklch(0.5 0.2 20);
-  --color-border: oklch(0.4 0.2 20);
-  --color-border-muted: oklch(0.3 0.2 20);
-  --color-primary: oklch(0.76 0.2 20);
-  --color-secondary: oklch(0.76 0.2 200);
-  --color-danger: oklch(0.7 0.2 30);
-  --color-warning: oklch(0.7 0.2 100);
-  --color-success: oklch(0.7 0.2 160);
-  --color-info: oklch(0.7 0.2 260);
+  --color-bg-dark: #101114;
+  --color-bg: #17191d;
+  --color-bg-light: #202329;
+  --color-text: #f4f4f5;
+  --color-text-muted: #a1a1aa;
+  --color-highlight: #383b42;
+  --color-border: #34373e;
+  --color-border-muted: #272a30;
+  --color-primary: #b4232d;
+  --color-secondary: #393d45;
+  --color-danger: #b4232d;
+  --color-warning: #c38a3a;
+  --color-success: #34805e;
+  --color-info: #47718e;
+}
+
+@layer base {
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    background: var(--color-bg-dark);
+    color: var(--color-text);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  select,
+  textarea {
+    border-color: var(--color-border);
+    border-radius: 4px;
+    background-color: #121317;
+    color: var(--color-text);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #71717a;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: #8f2b33;
+    outline: 2px solid rgb(180 35 45 / 20%);
+    outline-offset: 1px;
+  }
 }
