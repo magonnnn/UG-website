@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient"
 import { Link } from "react-router-dom";
+import rankingIcon from "../assets/ranking.svg";
+import matchIcon from "../assets/match.svg";
 
 const RightBar = () => {
     const [teams, setTeams] = useState([]);
@@ -86,7 +88,8 @@ const RightBar = () => {
     return (
         <aside className="min-w-0 space-y-4 p-3 sm:p-4">
             <section className="overflow-hidden bg-bg">
-                <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                <h2 className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <img src={rankingIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Ranking Podziemia
                 </h2>
                 <div>
@@ -115,7 +118,8 @@ const RightBar = () => {
             </section>
 
             <section className="overflow-hidden bg-bg">
-                <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                <h2 className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <img src={matchIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Dzisiejsze mecze
                 </h2>
                 {matchesLoading ? (
@@ -145,7 +149,7 @@ const RightBar = () => {
                                 </div>
                                 <div className="mt-2 flex items-center justify-between gap-2 text-sm text-white">
                                     <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
-                                    <span className="shrink-0 text-[10px] font-bold text-red-400">VS</span>
+                                    <img src={matchIcon} alt="" aria-hidden="true" className="h-3 w-3 invert opacity-60" />
                                     <span className="min-w-0 truncate text-right">{match.team_2?.name ?? "Drużyna 2"}</span>
                                 </div>
                             </Link>

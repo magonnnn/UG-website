@@ -29,10 +29,12 @@ const Match = () => {
                     id,
                     time,
                     team_1:teams!matches_team_1_id_fkey (
+                        id,
                         name,
                         logo
                     ),
                     team_2:teams!matches_team_2_id_fkey (
+                        id,
                         name,
                         logo
                     ),
@@ -119,9 +121,11 @@ const Match = () => {
                     const logoUrl = getLogoUrl(team.logo);
 
                     return (
-                        <div
+                        <Link
                             className={`flex min-w-0 flex-col items-center gap-4 text-center ${index === 0 ? "order-1" : "order-3"}`}
                             key={`${team.label}-${index}`}
+                            to="/team"
+                            state={{ id: team.id }}
                         >
                             {logoUrl ? (
                                 <img src={logoUrl} alt="" className="h-16 w-16 object-contain sm:h-24 sm:w-24" />
@@ -133,7 +137,7 @@ const Match = () => {
                             <h1 className="max-w-full break-words text-lg font-bold text-white sm:text-2xl">
                                 {team.label}
                             </h1>
-                        </div>
+                        </Link>
                     );
                 })}
                 <div className="order-2 text-center">
@@ -144,7 +148,7 @@ const Match = () => {
             <div className="px-4 py-3 text-center text-xs text-gray-500 sm:px-6">
                 Szczegóły spotkania
             </div>
-        </article>
+        </article >
     );
 };
 

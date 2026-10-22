@@ -12,6 +12,7 @@ import Players from "./pages/Players"
 import LeftBar from "./pages/LeftBar"
 import RightBar from "./pages/RightBar"
 import Match from './pages/Match'
+import Article from "./pages/Article";
 
 const App = () => {
   return (
@@ -27,6 +28,7 @@ const App = () => {
           <main className="order-1 min-w-0 px-3 py-4 sm:px-5 sm:py-6 lg:order-2 lg:px-6 xl:px-8">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/article/:id" element={<Article />} />
               <Route path="/ranking" element={<Ranking />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/team" element={<Team />} />

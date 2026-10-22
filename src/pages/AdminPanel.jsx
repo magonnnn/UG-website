@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import settingsIcon from "../assets/settings.svg";
 import addIcon from "../assets/add.svg";
@@ -16,19 +16,106 @@ const useSessionState = (key, initialValue) => {
             const saved = sessionStorage.getItem(key);
             return saved !== null ? JSON.parse(saved) : initialValue;
         } catch {
+            console.error(`Nie udało się odczytać wersji roboczej formularza "${key}".`);
             return initialValue;
         }
     });
 
-    useEffect(() => {
-        try {
-            sessionStorage.setItem(key, JSON.stringify(value));
-        } catch (error) {
-            console.error("Nie udało się zapisać formularza:", error);
-        }
-    }, [key, value]);
+    const setPersistedValue = useCallback((nextValue) => {
+        setValue((currentValue) => {
+            const resolvedValue =
+                typeof nextValue === "function" ? nextValue(currentValue) : nextValue;
 
-    return [value, setValue];
+            try {
+                sessionStorage.setItem(key, JSON.stringify(resolvedValue));
+            } catch (error) {
+                console.error("Nie udało się zapisać formularza:", error);
+            }
+
+            return resolvedValue;
+        });
+    }, [key]);
+
+    return [value, setPersistedValue];
+};
+
+const openAdminDraftDatabase = () =>
+    new Promise((resolve, reject) => {
+        const request = indexedDB.open("admin-form-drafts", 1);
+
+        request.onupgradeneeded = () => {
+            request.result.createObjectStore("files");
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+
+const useSessionFileState = (key) => {
+    const [file, setFile] = useState(null);
+    const revision = useRef(0);
+
+    useEffect(() => {
+        let active = true;
+        const currentRevision = revision.current;
+
+        const restoreFile = async () => {
+            try {
+                const database = await openAdminDraftDatabase();
+                const transaction = database.transaction("files", "readonly");
+                const request = transaction.objectStore("files").get(key);
+                request.onsuccess = () => {
+                    if (active && revision.current === currentRevision) {
+                        setFile(request.result ?? null);
+                    }
+                    database.close();
+                };
+                request.onerror = () => {
+                    console.error("Nie udało się odczytać pliku formularza:", request.error);
+                    database.close();
+                };
+            } catch (error) {
+                console.error("Nie udało się otworzyć pamięci plików formularza:", error);
+            }
+        };
+
+        void restoreFile();
+
+        return () => {
+            active = false;
+        };
+    }, [key]);
+
+    const setPersistedFile = useCallback((nextFile) => {
+        revision.current += 1;
+        setFile(nextFile);
+
+        const persistFile = async () => {
+            try {
+                const database = await openAdminDraftDatabase();
+                const transaction = database.transaction("files", "readwrite");
+                const store = transaction.objectStore("files");
+
+                if (nextFile) {
+                    store.put(nextFile, key);
+                } else {
+                    store.delete(key);
+                }
+
+                transaction.oncomplete = () => database.close();
+                transaction.onerror = () => {
+                    console.error("Nie udało się zapisać pliku formularza:", transaction.error);
+                    database.close();
+                };
+                transaction.onabort = () => database.close();
+            } catch (error) {
+                console.error("Nie udało się otworzyć pamięci plików formularza:", error);
+            }
+        };
+
+        void persistFile();
+    }, [key]);
+
+    return [file, setPersistedFile];
 };
 
 const emptyRoster = {
@@ -39,12 +126,6 @@ const emptyRoster = {
     player5: "",
 };
 
-const emptyNewPlayers = { ...emptyRoster };
-
-
-const rosterValues = (roster) =>
-    Object.values(roster).map((player) => player.trim());
-
 const teamPlayerIds = (team) =>
     Array.from({ length: 5 }, (_, index) => team?.[`player${index + 1}`] ?? null);
 
@@ -53,32 +134,33 @@ const AdminPanel = () => {
     const [players, setPlayers] = useState([])
     const [tournaments, setTournaments] = useState([]);
     const [matches, setMatches] = useState([]);
-    const [selectedMatchId, setSelectedMatchId] = useState("");
-    const [matchForm, setMatchForm] = useState({
+    const [selectedMatchId, setSelectedMatchId] = useSessionState("admin-selected-match-id", "");
+    const [matchForm, setMatchForm] = useSessionState("admin-match-form", {
         team_1_id: "",
         team_2_id: "",
         league: "",
         time: "",
     });
-    const [logoFile, setLogoFile] = useState(null);
-    const [pointsChange, setPointsChange] = useState(0);
-    const [newPlayer, setNewPlayer] = useState("");
-    const [newSteam, setNewSteam] = useState("");
-    const [newPlayerTeam, setNewPlayerTeam] = useState("");
-    const [selectedPlayerId, setSelectedPlayerId] = useState("");
-    const [updatedPlayerName, setUpdatedPlayerName] = useState("");
-    const [updatedPlayerSteam, setUpdatedPlayerSteam] = useState("");
-    const [updatedPlayerTeam, setUpdatedPlayerTeam] = useState("");
-    const [editRoster, setEditRoster] = useState([])
+    const [logoFile, setLogoFile] = useSessionFileState("admin-team-logo");
+    const [reducePoints, setReducePoints] = useSessionState("admin-reduce-points", "");
+    const [increasePoints, setIncreasePoints] = useSessionState("admin-increase-points", "");
+    const [newPlayer, setNewPlayer] = useSessionState("admin-new-player-name", "");
+    const [newSteam, setNewSteam] = useSessionState("admin-new-player-steam", "");
+    const [newPlayerTeam, setNewPlayerTeam] = useSessionState("admin-new-player-team", "");
+    const [articleTitle, setArticleTitle] = useSessionState("admin-article-title", "");
+    const [articleAuthor, setArticleAuthor] = useSessionState("admin-article-author", "");
+    const [articleContent, setArticleContent] = useSessionState("admin-article-content", "");
+    const [articleCoverFile, setArticleCoverFile] = useSessionFileState("admin-article-cover");
+    const [selectedPlayerId, setSelectedPlayerId] = useSessionState("admin-selected-player-id", "");
+    const [updatedPlayerName, setUpdatedPlayerName] = useSessionState("admin-updated-player-name", "");
+    const [updatedPlayerSteam, setUpdatedPlayerSteam] = useSessionState("admin-updated-player-steam", "");
+    const [updatedPlayerTeam, setUpdatedPlayerTeam] = useSessionState("admin-updated-player-team", "");
+    const [editRoster, setEditRoster] = useSessionState("admin-edit-roster", []);
 
 
     const [, setRosterInputs] = useSessionState(
         "admin-roster-inputs",
         emptyRoster
-    );
-    const [newPlayers, setNewPlayers] = useSessionState(
-        "admin-new-players",
-        emptyNewPlayers
     );
     const [newTeamName, setNewTeamName] = useSessionState(
         "admin-new-team-name",
@@ -199,6 +281,8 @@ const AdminPanel = () => {
         setUpdatedName("");
         setEditRoster([]);
         setRosterInputs({ ...emptyRoster });
+        setReducePoints("");
+        setIncreasePoints("");
     };
 
     const changeTeam = (event) => {
@@ -211,6 +295,8 @@ const AdminPanel = () => {
         setSelectedTeamId(team ? String(team.id) : "");
         setUpdatedName(team?.name ?? "");
         setEditRoster(nextRoster.map((playerId) => (playerId == null ? "" : String(playerId))));
+        setReducePoints("");
+        setIncreasePoints("");
 
         const linkedRoster = teamPlayerIds(team)
             .map((playerId) => players.find((player) => String(player.id) === String(playerId))?.name ?? "");
@@ -224,11 +310,6 @@ const AdminPanel = () => {
         });
 
         clearMessage();
-    };
-
-    const handleNewPlayerChange = (event, index) => {
-        const key = `player${index + 1}`;
-        setNewPlayers((prev) => ({ ...prev, [key]: event.target.value }));
     };
 
     const updateTeamPlayerReferences = async (team, player, assigned) => {
@@ -281,6 +362,7 @@ const AdminPanel = () => {
 
     const updateDatabase = async (event) => {
         event.preventDefault();
+        const form = event.currentTarget;
 
         if (!selectedTeamId) {
             showMessage("Najpierw wybierz drużynę.", "error");
@@ -288,9 +370,21 @@ const AdminPanel = () => {
         }
 
         const name = updatedName.trim();
+        const pointsToReduce = Number(reducePoints || 0);
+        const pointsToIncrease = Number(increasePoints || 0);
 
         if (!name) {
             showMessage("Nazwa drużyny nie może być pusta.", "error");
+            return;
+        }
+
+        if (
+            !Number.isFinite(pointsToReduce) ||
+            !Number.isFinite(pointsToIncrease) ||
+            pointsToReduce < 0 ||
+            pointsToIncrease < 0
+        ) {
+            showMessage("Liczba punktów musi być nieujemną liczbą.", "error");
             return;
         }
 
@@ -380,7 +474,7 @@ const AdminPanel = () => {
                 ...Object.fromEntries(
                     rosterIds.map((playerId, index) => [`player${index + 1}`, playerId])
                 ),
-                points: (selectedTeam?.points ?? 0) + pointsChange,
+                points: (selectedTeam?.points ?? 0) - pointsToReduce + pointsToIncrease,
                 logo: nextLogoPath,
             })
             .eq("id", selectedTeamId);
@@ -397,6 +491,11 @@ const AdminPanel = () => {
         if (refreshed) {
             setUpdatedName(name);
             setLogoFile(null);
+            form.querySelectorAll('input[type="file"]').forEach((input) => {
+                input.value = "";
+            });
+            setReducePoints("");
+            setIncreasePoints("");
             showMessage("Drużyna została zaktualizowana.", "success");
         }
 
@@ -767,6 +866,7 @@ const AdminPanel = () => {
 
     const addTeam = async (event) => {
         event.preventDefault();
+        const form = event.currentTarget;
 
         const name = newTeamName.trim();
 
@@ -781,30 +881,6 @@ const AdminPanel = () => {
             )
         ) {
             showMessage("Drużyna o tej nazwie już istnieje.", "error");
-            return;
-        }
-
-        const values = rosterValues(newPlayers);
-        const rosterPlayers = values.map((playerName) =>
-            playerName
-                ? players.find(
-                    (player) => player.name.toLowerCase() === playerName.toLowerCase()
-                )
-                : null
-        );
-
-        if (rosterPlayers.some((player, index) => values[index] && !player)) {
-            showMessage("Każdy gracz w składzie musi istnieć w bazie.", "error");
-            return;
-        }
-
-        if (
-            rosterPlayers.filter(Boolean).some(
-                (player, index, roster) =>
-                    roster.findIndex((item) => item.id === player.id) !== index
-            )
-        ) {
-            showMessage("Ten sam gracz nie może występować w składzie dwa razy.", "error");
             return;
         }
 
@@ -842,11 +918,8 @@ const AdminPanel = () => {
             {
                 name,
                 points: 0,
-                roster: values.filter(Boolean),
+                roster: [],
                 logo: logoPath,
-                ...Object.fromEntries(
-                    rosterPlayers.map((player, index) => [`player${index + 1}`, player?.id ?? null])
-                ),
             },
         ]);
 
@@ -861,11 +934,123 @@ const AdminPanel = () => {
 
         if (refreshed) {
             setNewTeamName("");
-            setNewPlayers({ ...emptyNewPlayers });
             setLogoFile(null);
+            form.reset();
             showMessage("Nowa drużyna została dodana.", "success");
         }
 
+        setLoading(false);
+    };
+
+    const addArticle = async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+
+        const title = articleTitle.trim();
+        const author = articleAuthor.trim();
+        const content = articleContent.trim();
+
+        if (!title || !author || !content || !articleCoverFile) {
+            showMessage("Uzupełnij tytuł, autora, treść i wybierz zdjęcie okładkowe.", "error");
+            return;
+        }
+
+        const allowedTypes = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp",
+        };
+        const extension = allowedTypes[articleCoverFile.type];
+
+        if (!extension) {
+            showMessage("Wybierz plik PNG, JPG lub WebP.", "error");
+            return;
+        }
+
+        if (articleCoverFile.size > 10 * 1024 * 1024) {
+            showMessage("Okładka może mieć maksymalnie 10 MB.", "error");
+            return;
+        }
+
+        setLoading(true);
+        clearMessage();
+
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !authData.user) {
+            console.error("Error checking article upload session:", authError?.message ?? "No authenticated user");
+            showMessage("Sesja wygasła. Zaloguj się ponownie przed dodaniem artykułu.", "error");
+            setLoading(false);
+            return;
+        }
+
+        const { data: isArticleAdmin, error: roleCheckError } = await supabase.rpc("is_article_admin");
+
+        if (roleCheckError || isArticleAdmin !== true) {
+            console.error(
+                "Article upload admin policy check failed:",
+                roleCheckError?.message ?? `User ${authData.user.id} is not an article admin`
+            );
+            showMessage(
+                roleCheckError
+                    ? `Nie można sprawdzić uprawnień do artykułów (${roleCheckError.message}). Zastosuj migrację 20261022200800_fix_article_storage_rls.sql w projekcie Supabase używanym przez stronę.`
+                    : "Baza danych nie rozpoznaje Twojego konta jako administratora artykułów.",
+                "error"
+            );
+            setLoading(false);
+            return;
+        }
+
+        const coverImagePath = `${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+            .from("articles")
+            .upload(coverImagePath, articleCoverFile, {
+                contentType: articleCoverFile.type,
+                upsert: false,
+            });
+
+        if (uploadError) {
+            console.error("Error uploading article cover:", {
+                message: uploadError.message,
+                name: uploadError.name,
+                statusCode: uploadError.statusCode,
+            });
+            showMessage(
+                `Błąd przesyłania okładki: ${uploadError.message}. Uprawnienia administratora są potwierdzone, więc sprawdź polityki RLS bucketu "articles" oraz czy migracja została zastosowana w projekcie Supabase używanym przez stronę.`,
+                "error"
+            );
+            setLoading(false);
+            return;
+        }
+
+        const { error } = await supabase.from("articles").insert({
+            title,
+            author,
+            content,
+            cover_image: coverImagePath,
+        });
+
+        if (error) {
+            console.error("Error inserting article:", error.message);
+            const { error: cleanupError } = await supabase.storage
+                .from("articles")
+                .remove([coverImagePath]);
+
+            if (cleanupError) {
+                console.error("Error removing unused article cover:", cleanupError.message);
+            }
+
+            showMessage(`Błąd dodawania artykułu: ${error.message}`, "error");
+            setLoading(false);
+            return;
+        }
+
+        setArticleTitle("");
+        setArticleAuthor("");
+        setArticleContent("");
+        setArticleCoverFile(null);
+        form.reset();
+        showMessage("Artykuł został dodany.", "success");
         setLoading(false);
     };
 
@@ -1044,8 +1229,8 @@ const AdminPanel = () => {
                                     <div>
                                         <label htmlFor="teamLogoInput" className="sr-only">Wybierz logo</label>
                                         <label className="mt-2 flex cursor-pointer items-center justify-center rounded border border-white/10 bg-bg-light px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-highlight">
-                                                    <img src={fileIcon} alt="" aria-hidden="true" className="mr-2 h-4 w-4 invert opacity-70" />
-                                                    Wybierz logo
+                                            <img src={fileIcon} alt="" aria-hidden="true" className="mr-2 h-4 w-4 invert opacity-70" />
+                                            {logoFile?.name ?? "Wybierz logo"}
                                             <input
                                                 type="file"
                                                 name="teamLogoInput"
@@ -1087,8 +1272,24 @@ const AdminPanel = () => {
                             Zmień punkty (odejmij / dodaj)
                         </h2>
                         <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <input type="number" onBlur={(event) => { setPointsChange(prev => prev - Number(event.target.value)) }} name="reducePoints" placeholder="Odejmij punkty" className="mb-4 w-full min-w-0 border p-2.5 text-center" />
-                            <input type="number" onBlur={(event) => { setPointsChange(prev => prev + Number(event.target.value)) }} name="increasePoints" placeholder="Dodaj punkty" className="mb-4 w-full min-w-0 border p-2.5 text-center" />
+                            <input
+                                type="number"
+                                min="0"
+                                name="reducePoints"
+                                placeholder="Odejmij punkty"
+                                value={reducePoints}
+                                onChange={(event) => setReducePoints(event.target.value)}
+                                className="mb-4 w-full min-w-0 border p-2.5 text-center"
+                            />
+                            <input
+                                type="number"
+                                min="0"
+                                name="increasePoints"
+                                placeholder="Dodaj punkty"
+                                value={increasePoints}
+                                onChange={(event) => setIncreasePoints(event.target.value)}
+                                className="mb-4 w-full min-w-0 border p-2.5 text-center"
+                            />
                         </div>
 
                         <div className="flex flex-wrap gap-3">
@@ -1122,11 +1323,9 @@ const AdminPanel = () => {
                         Dodanie drużyny
                     </h2>
                     <div className="p-4">
-                        <label
-                            htmlFor="teamName"
-                            className="block text-white mb-2"
-                        >
-                            Nazwa drużyny
+                        <label htmlFor="article-title" className="mb-2 flex gap-2 items-center block text-white">
+                            <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                            Nazwa
                         </label>
                         <input
                             type="text"
@@ -1137,30 +1336,11 @@ const AdminPanel = () => {
                             className="w-full min-w-0 border p-2.5 text-white"
                             required
                         />
-                        <h2 className="text-white mb-2 mt-2">
-                            Skład drużyny
-                        </h2>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                            {Object.values(newPlayers).map((player, index) => (
-                                <input
-                                    key={index}
-                                    type="text"
-                                    placeholder={`Gracz ${index + 1}...`}
-                                    aria-label={`Nowy gracz ${index + 1}`}
-                                    value={player}
-                                    onChange={(event) =>
-                                        handleNewPlayerChange(event, index)
-                                    }
-                                    className="w-full min-w-0 border p-2.5 text-white"
-                                />
-                            ))}
-                        </div>
                         <div>
                             <label htmlFor="teamLogoInput" className="sr-only">Wybierz logo</label>
                             <label className="mt-4 flex cursor-pointer items-center justify-center rounded border border-white/10 bg-bg-light px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-highlight">
                                 <img src={fileIcon} alt="" aria-hidden="true" className="mr-2 h-4 w-4 invert opacity-70" />
-                                Wybierz logo
+                                {logoFile?.name ?? "Wybierz logo"}
                                 <input
                                     type="file"
                                     name="teamLogoInput"
@@ -1184,12 +1364,110 @@ const AdminPanel = () => {
                         </button>
                     </div>
                 </form>
+                <form onSubmit={addArticle} className="min-w-0 border border-white/10 bg-bg">
+                    <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
+                        Dodanie artykułu
+                    </h2>
+                    <div className="grid gap-4 p-4">
+                        <div>
+                            <label htmlFor="article-title" className="mb-2 flex gap-2 items-center block text-white">
+                                <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                                Tytuł
+                            </label>
+                            <input
+                                id="article-title"
+                                type="text"
+                                value={articleTitle}
+                                onChange={(event) => setArticleTitle(event.target.value)}
+                                className="w-full min-w-0 border p-2.5"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="article-title" className="mb-2 flex gap-2 items-center block text-white">
+                                <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                                Autor
+                            </label>
+                            <input
+                                id="article-author"
+                                type="text"
+                                value={articleAuthor}
+                                onChange={(event) => setArticleAuthor(event.target.value)}
+                                className="w-full min-w-0 border p-2.5"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="article-cover" className="sr-only">Wybierz miniaturkę artykułu</label>
+                            <label className="mt-4 flex cursor-pointer items-center justify-center rounded border border-white/10 bg-bg-light px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-highlight">
+                                <img src={fileIcon} alt="" aria-hidden="true" className="mr-2 h-4 w-4 invert opacity-70" />
+                                {logoFile?.name ?? "Wybierz miniaturkę artykułu"}
+                                <input
+                                    type="file"
+                                    id="article-cover"
+                                    accept="image/png,image/jpeg,image/webp"
+                                    onChange={(event) =>
+                                        setArticleCoverFile(event.target.files?.[0] ?? null)
+                                    }
+                                    className="hidden"
+                                />
+                            </label>
+                        </div>
+                        {/* <div>
+
+                            <label htmlFor="article-cover" className="mb-2 block text-white">
+                                Zdjęcie okładkowe
+                            </label>
+                            <input
+                                id="article-cover"
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                onChange={(event) =>
+                                    setArticleCoverFile(event.target.files?.[0] ?? null)
+                                }
+                                className="w-full min-w-0 border p-2.5"
+                            />
+                            {articleCoverFile && (
+                                <p className="mt-2 text-xs text-gray-400">
+                                    Wybrano: {articleCoverFile.name}
+                                </p>
+                            )}
+                        </div> */}
+                        <div>
+                            <label htmlFor="article-title" className="mb-2 flex gap-2 items-center block text-white">
+                                <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                                Treść
+                            </label>
+                            <textarea
+                                id="article-content"
+                                rows={10}
+                                value={articleContent}
+                                onChange={(event) => setArticleContent(event.target.value)}
+                                className="w-full min-w-0 border p-2.5"
+                                required
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <span className="inline-flex items-center gap-2">
+                                <img src={addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                {loading ? "Przetwarzanie..." : "Dodaj artykuł"}
+                            </span>
+                        </button>
+                    </div>
+                </form>
                 <form onSubmit={addPlayer} className="mb-4 min-w-0 border border-white/10 bg-bg">
                     <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Dodanie gracza
                     </h2>
                     <div className="p-4">
-                        <label htmlFor="new-player-name" className="block text-white mb-2">Nazwa gracza</label>
+                        <label htmlFor="article-title" className="mb-2 flex gap-2 items-center block text-white">
+                            <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                            Nazwa
+                        </label>
                         <input
                             id="new-player-name"
                             type="text"
@@ -1200,7 +1478,7 @@ const AdminPanel = () => {
                             className="w-full min-w-0 border p-2.5 text-white"
                             required
                         />
-                        <label htmlFor="new-player-steam" className="mb-2 mt-4 flex items-center gap-2 text-white">
+                        <label htmlFor="article-title" className="mb-2 mt-4 flex gap-2 items-center block text-white">
                             <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
                             Link do steama
                         </label>

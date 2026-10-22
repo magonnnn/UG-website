@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import squadIcon from "../assets/squad.svg";
 import clockIcon from "../assets/clock.svg";
+import dblArrow from "../assets/double-right-arrow.svg"
 
 const getLogoUrl = (logo) => {
     if (!logo) return null;
@@ -145,7 +146,7 @@ const LeftBar = () => {
                                         {transfer.players?.name ?? "Nieznany gracz"}
                                     </p>
                                     <p className="truncate text-[11px] text-gray-500">
-                                        {transfer.from_team?.name ?? "Bez drużyny"} → {transfer.to_team?.name ?? "Bez drużyny"}
+                                        {transfer.from_team?.name ?? "Bez drużyny"} <img src={dblArrow} alt="" aria-hidden="true" className="h-2 w-2 invert opacity-60" /> {transfer.to_team?.name ?? "Bez drużyny"}
                                     </p>
                                 </div>
                                 {getLogoUrl(transfer.to_team?.logo) ? (
