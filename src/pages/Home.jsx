@@ -33,15 +33,8 @@ const Home = () => {
 
     return (
         <section className="min-w-0">
-            <header className="mb-5 border-b border-white/10 pb-4">
-                <h1 className="text-2xl font-bold text-white sm:text-3xl">Start</h1>
-            </header>
 
             <section aria-labelledby="articles-heading">
-                <h2 id="articles-heading" className="mb-4 text-xl font-bold text-white">
-                    Artykuły
-                </h2>
-
                 {loading ? (
                     <p className="text-sm text-gray-400">Ładowanie artykułów...</p>
                 ) : error ? (

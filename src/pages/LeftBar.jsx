@@ -8,6 +8,10 @@ import partner from "../assets/partner.svg";
 import PartnerCard from "../components/PartnerCard";
 import partners from "../data/partners";
 
+const reducedPartners = partners.filter((elem, index) => {
+    return index < 3;
+})
+
 const getLogoUrl = (logo) => {
     if (!logo) return null;
 
@@ -196,7 +200,7 @@ const LeftBar = () => {
                     Partnerzy
                 </h2>
                 <div className="partner-sidebar-grid px-3 pb-3">
-                    {partners.map((partnerInfo) => (
+                    {reducedPartners.map((partnerInfo) => (
                         <PartnerCard key={partnerInfo.name} partner={partnerInfo} compact />
                     ))}
                 </div>
