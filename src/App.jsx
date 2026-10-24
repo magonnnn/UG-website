@@ -13,6 +13,7 @@ import LeftBar from "./pages/LeftBar"
 import RightBar from "./pages/RightBar"
 import Match from './pages/Match'
 import Article from "./pages/Article";
+import Partners from "./pages/Partners"
 
 const App = () => {
   return (
@@ -33,8 +34,8 @@ const App = () => {
               <Route path="/contact" element={<Contact />} />
               <Route path="/team" element={<Team />} />
               <Route path="/match" element={<Match />} />
-              <Route
-                path="/admin-panel"
+              <Route path="/partners" element={<Partners />} />
+              <Route path="/admin-panel"
                 element={
                   <AdminRoute>
                     <AdminPanel />

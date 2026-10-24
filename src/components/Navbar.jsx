@@ -196,6 +196,12 @@ const Navbar = () => {
                         >
                             Kontakt
                         </Link>
+                        <Link
+                            to="/partners"
+                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+                        >
+                            Partnerzy
+                        </Link>
                     </div>
 
                     {/* {user && (

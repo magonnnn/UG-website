@@ -64,3 +64,19 @@
     outline-offset: 1px;
   }
 }
+
+.partner-sidebar {
+  container-type: inline-size;
+}
+
+.partner-sidebar-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+@container (min-width: 560px) {
+  .partner-sidebar-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
