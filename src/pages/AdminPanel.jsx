@@ -219,6 +219,7 @@ const AdminPanel = () => {
                 current_team,
                 steam_profile
                 `)
+            .order('name', { ascending: true })
 
         if (error) {
             console.error("Error loading players:", error.message);
