@@ -14,15 +14,16 @@ import RightBar from "./pages/RightBar"
 import Match from './pages/Match'
 import Article from "./pages/Article";
 import Partners from "./pages/Partners"
+import Transfers from "./pages/Transfers"
 
 const App = () => {
   return (
     <HashRouter>
-      <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-bg-dark text-text">
+      <div className="flex min-h-screen w-full flex-col overflow-x-clip bg-bg-dark text-text">
         <Header />
 
         <div className="mx-auto grid w-full max-w-[1600px] min-w-0 flex-1 grid-cols-1 content-start lg:grid-cols-[minmax(210px,250px)_minmax(0,1fr)_minmax(220px,280px)]">
-          <div className="order-2 min-w-0 lg:order-1">
+          <div className="order-2 min-w-0 lg:sticky lg:top-20 lg:order-1 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
             <LeftBar />
           </div>
 
@@ -35,6 +36,7 @@ const App = () => {
               <Route path="/team" element={<Team />} />
               <Route path="/match" element={<Match />} />
               <Route path="/partners" element={<Partners />} />
+              <Route path="/transfers" element={<Transfers />} />
               <Route path="/admin-panel"
                 element={
                   <AdminRoute>
@@ -47,7 +49,7 @@ const App = () => {
             </Routes>
           </main>
 
-          <div className="order-3 min-w-0">
+          <div className="order-3 min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
             <RightBar />
           </div>
         </div>

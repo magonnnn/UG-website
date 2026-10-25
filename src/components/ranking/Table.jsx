@@ -2,12 +2,17 @@ import Row from "./Row.jsx"
 import { useState, useEffect } from 'react';
 import { supabase } from "../../lib/supabaseClient";
 import filterIcon from "../../assets/filter.svg";
+import Pagination from "../Pagination";
+
+const PAGE_SIZE = 25;
+
 const Table = () => {
 
     const [teams, setTeams] = useState([]);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [filterInput, setFilterInput] = useState("")
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         async function fetchTeams() {
@@ -26,8 +31,14 @@ const Table = () => {
     }, []);
 
     const updateDisplay = (value) => {
-        setFilterInput(value)
+        setFilterInput(value);
+        setCurrentPage(1);
     }
+    const filteredTeams = teams.filter((team) =>
+        team.name?.toLowerCase().includes((filterInput ?? "").toLowerCase())
+    );
+    const pageCount = Math.ceil(filteredTeams.length / PAGE_SIZE);
+    const pageTeams = filteredTeams.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
     return (
         <section className="min-w-0">
@@ -61,45 +72,50 @@ const Table = () => {
                         </tr>
                     </thead>
                     <tbody>
-                    {loading && (<tr>
-                        <td colSpan="5" className="px-3 py-8 text-center text-sm text-gray-400">Ładowanie drużyn...</td>
-                    </tr>
-                    )}
-                    {error && (<tr>
-                        <td colSpan="5" className="px-3 py-8 text-center text-sm text-red-300">Błąd ładowania drużyn: {error}</td>
-                    </tr>
-                    )}
-
-                    {!loading && !error && teams.length === 0 && (
-                        <tr>
-                            <td colSpan="5" className="px-3 py-8 text-center text-sm text-gray-400">Nie znaleziono drużyn.</td>
+                        {loading && (<tr>
+                            <td colSpan="5" className="px-3 py-8 text-center text-sm text-gray-400">Ładowanie drużyn...</td>
                         </tr>
-                    )}
+                        )}
+                        {error && (<tr>
+                            <td colSpan="5" className="px-3 py-8 text-center text-sm text-red-300">Błąd ładowania drużyn: {error}</td>
+                        </tr>
+                        )}
 
-                    {!loading && !error && teams
-                        .filter((team) =>
-                            team.name?.toLowerCase().includes((filterInput ?? "").toLowerCase())
-                        )
-                        .map((team, i) => (
-                            <Row
-                                key={team.id}
-                                id={team.id}
-                                ite={i}
-                                team={team.name}
-                                points={team.points}
-                                roster={team.roster}
-                                logo={
-                                    team.logo
-                                        ? supabase.storage
-                                            .from("logos")
-                                            .getPublicUrl(team.logo).data.publicUrl
-                                        : null
-                                }
-                            />
-                        ))}
+                        {!loading && !error && teams.length === 0 && (
+                            <tr>
+                                <td colSpan="5" className="px-3 py-8 text-center text-sm text-gray-400">Nie znaleziono drużyn.</td>
+                            </tr>
+                        )}
+
+                        {!loading && !error && pageTeams
+                            .map((team, i) => (
+                                <Row
+                                    key={team.id}
+                                    id={team.id}
+                                    ite={(currentPage - 1) * PAGE_SIZE + i}
+                                    team={team.name}
+                                    points={team.points}
+                                    roster={team.roster}
+                                    logo={
+                                        team.logo
+                                            ? supabase.storage
+                                                .from("logos")
+                                                .getPublicUrl(team.logo).data.publicUrl
+                                            : null
+                                    }
+                                />
+                            ))}
                     </tbody>
                 </table>
             </div>
+            {!loading && !error && (
+                <Pagination
+                    currentPage={currentPage}
+                    pageCount={pageCount}
+                    itemCount={pageTeams.length}
+                    onPageChange={setCurrentPage}
+                />
+            )}
         </section>
     )
 }

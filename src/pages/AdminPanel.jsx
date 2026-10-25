@@ -486,9 +486,95 @@ const AdminPanel = () => {
             return;
         }
 
-        const refreshed = await loadTeams();
+        const previousRosterIds = new Set(
+            teamPlayerIds(selectedTeam).filter((playerId) => playerId != null).map(String)
+        );
+        const nextRosterIds = new Set(
+            rosterPlayers.filter(Boolean).map((player) => String(player.id))
+        );
+        const changedPlayers = players.filter((player) => {
+            const playerId = String(player.id);
+            return previousRosterIds.has(playerId) !== nextRosterIds.has(playerId);
+        });
+        let transfersChanged = false;
 
-        if (refreshed) {
+        for (const player of changedPlayers) {
+            const previousTeam = player.current_team;
+            const nextTeam = nextRosterIds.has(String(player.id))
+                ? selectedTeam.id
+                : String(previousTeam ?? "") === selectedTeamId
+                    ? null
+                    : previousTeam;
+            const teamChanged = String(previousTeam ?? "") !== String(nextTeam ?? "");
+
+            if (!teamChanged) continue;
+
+            const playerUpdates = { current_team: nextTeam };
+            if (previousTeam != null) {
+                playerUpdates.team_history = [
+                    ...(Array.isArray(player.team_history) ? player.team_history : []),
+                    previousTeam,
+                ];
+            }
+
+            const { error: playerError } = await supabase
+                .from("players")
+                .update(playerUpdates)
+                .eq("id", player.id);
+
+            if (playerError) {
+                console.error("Error updating player team:", playerError.message);
+                showMessage(`Błąd aktualizacji drużyny gracza: ${playerError.message}`, "error");
+                await Promise.all([loadTeams(), loadPlayers()]);
+                setLoading(false);
+                return;
+            }
+
+            const { error: transferError } = await supabase
+                .from("transfers")
+                .insert({
+                    player_id: player.id,
+                    from_id: previousTeam,
+                    to_id: nextTeam,
+                });
+
+            if (transferError) {
+                console.error("Error recording transfer:", transferError.message);
+                showMessage(`Błąd zapisu transferu: ${transferError.message}`, "error");
+                await Promise.all([loadTeams(), loadPlayers()]);
+                setLoading(false);
+                return;
+            }
+
+            transfersChanged = true;
+        }
+
+        if (transfersChanged) {
+            window.dispatchEvent(new Event("transfers-updated"));
+        }
+
+        for (const player of rosterPlayers.filter(Boolean)) {
+            for (const otherTeam of teams) {
+                if (
+                    String(otherTeam.id) !== selectedTeamId &&
+                    teamPlayerIds(otherTeam).some(
+                        (playerId) => String(playerId) === String(player.id)
+                    ) &&
+                    !(await updateTeamPlayerReferences(otherTeam, player, false))
+                ) {
+                    await Promise.all([loadTeams(), loadPlayers()]);
+                    setLoading(false);
+                    return;
+                }
+            }
+        }
+
+        const [teamsRefreshed, playersRefreshed] = await Promise.all([
+            loadTeams(),
+            loadPlayers(),
+        ]);
+
+        if (teamsRefreshed && playersRefreshed) {
             setUpdatedName(name);
             setLogoFile(null);
             form.querySelectorAll('input[type="file"]').forEach((input) => {

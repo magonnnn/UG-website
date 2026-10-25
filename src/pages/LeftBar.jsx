@@ -84,9 +84,11 @@ const LeftBar = () => {
         };
 
         loadSidebarData();
+        window.addEventListener("transfers-updated", loadSidebarData);
 
         return () => {
             active = false;
+            window.removeEventListener("transfers-updated", loadSidebarData);
         };
     }, []);
 
@@ -122,10 +124,13 @@ const LeftBar = () => {
     return (
         <aside className="partner-sidebar min-w-0 space-y-4 p-3 sm:p-4">
             <section className="overflow-hidden bg-bg">
-                <h2 className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                <Link
+                    to="/transfers"
+                    className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400 transition-colors hover:text-white"
+                >
                     <img src={squadIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
-                    Transfery
-                </h2>
+                    TRANSFERS
+                </Link>
                 {loading ? (
                     <p className="px-4 py-5 text-sm text-gray-400">Ładowanie transferów...</p>
                 ) : transfersError ? (

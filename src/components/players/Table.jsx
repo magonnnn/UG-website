@@ -3,6 +3,9 @@ import Row from "./Row.jsx";
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import filterIcon from "../../assets/filter.svg";
+import Pagination from "../Pagination";
+
+const PAGE_SIZE = 25;
 
 const Table = () => {
     const [error, setError] = useState("");
@@ -11,6 +14,7 @@ const Table = () => {
     const [players, setPlayers] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTeam, setSelectedTeam] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         let active = true;
@@ -74,6 +78,8 @@ const Table = () => {
 
         return matchesName && matchesTeam;
     });
+    const pageCount = Math.ceil(filteredPlayers.length / PAGE_SIZE);
+    const pagePlayers = filteredPlayers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
     return (
         <section className="min-w-0">
@@ -91,7 +97,10 @@ const Table = () => {
                             type="text"
                             id="search"
                             value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
+                            onChange={(event) => {
+                                setSearchQuery(event.target.value);
+                                setCurrentPage(1);
+                            }}
                             placeholder="Nazwa gracza"
                             className="w-full min-w-0 border p-2.5 text-sm"
                         />
@@ -102,7 +111,10 @@ const Table = () => {
                             className="w-full min-w-0 border p-2.5 text-sm"
                             id="team-select"
                             value={selectedTeam}
-                            onChange={(event) => setSelectedTeam(event.target.value)}
+                            onChange={(event) => {
+                                setSelectedTeam(event.target.value);
+                                setCurrentPage(1);
+                            }}
                         >
                             <option value="">Wszystkie drużyny</option>
                             {teams.map((team) => (
@@ -123,42 +135,50 @@ const Table = () => {
                             <th className="px-3 py-3 text-right font-semibold">Drużyna</th>
                         </tr>
                     </thead>
-                <tbody>
-                    {loading && (
-                        <tr>
-                            <td colSpan="2" className="px-3 py-8 text-center text-sm text-gray-400">Ładowanie graczy...</td>
-                        </tr>
-                    )}
+                    <tbody>
+                        {loading && (
+                            <tr>
+                                <td colSpan="2" className="px-3 py-8 text-center text-sm text-gray-400">Ładowanie graczy...</td>
+                            </tr>
+                        )}
 
-                    {error && (
-                        <tr>
-                            <td colSpan="2" className="px-3 py-8 text-center text-sm text-red-300">
-                                Błąd ładowania graczy: {error}
-                            </td>
-                        </tr>
-                    )}
+                        {error && (
+                            <tr>
+                                <td colSpan="2" className="px-3 py-8 text-center text-sm text-red-300">
+                                    Błąd ładowania graczy: {error}
+                                </td>
+                            </tr>
+                        )}
 
-                    {!loading && !error && filteredPlayers.length === 0 && (
-                        <tr>
-                            <td colSpan="2" className="px-3 py-8 text-center text-sm text-gray-400">
-                                {players.length === 0 ? "Nie znaleziono graczy." : "Brak graczy pasujących do wyszukiwania."}
-                            </td>
-                        </tr>
-                    )}
+                        {!loading && !error && filteredPlayers.length === 0 && (
+                            <tr>
+                                <td colSpan="2" className="px-3 py-8 text-center text-sm text-gray-400">
+                                    {players.length === 0 ? "Nie znaleziono graczy." : "Brak graczy pasujących do wyszukiwania."}
+                                </td>
+                            </tr>
+                        )}
 
-                    {!loading &&
-                        !error &&
-                        filteredPlayers.map((player) => (
-                            <Row
-                                key={player.id}
-                                name={player.name}
-                                team={player.current_team?.name}
-                                id={player.id}
-                            />
-                        ))}
-                </tbody>
+                        {!loading &&
+                            !error &&
+                            pagePlayers.map((player) => (
+                                <Row
+                                    key={player.id}
+                                    name={player.name}
+                                    team={player.current_team?.name}
+                                    id={player.id}
+                                />
+                            ))}
+                    </tbody>
                 </table>
             </div>
+            {!loading && !error && (
+                <Pagination
+                    currentPage={currentPage}
+                    pageCount={pageCount}
+                    itemCount={pagePlayers.length}
+                    onPageChange={setCurrentPage}
+                />
+            )}
         </section>
     );
 };
