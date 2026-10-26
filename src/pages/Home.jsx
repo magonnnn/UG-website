@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import refrag from "../assets/refrag-baner.png";
 
 const Home = () => {
     const [articles, setArticles] = useState([]);
@@ -33,7 +34,11 @@ const Home = () => {
 
     return (
         <section className="min-w-0">
-
+            <img
+                src={refrag}
+                alt="refrag partner baner"
+                className="mb-4 aspect-[7/1] w-full object-cover"
+            />
             <section aria-labelledby="articles-heading">
                 {loading ? (
                     <p className="text-sm text-gray-400">Ładowanie artykułów...</p>

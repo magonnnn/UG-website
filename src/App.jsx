@@ -23,8 +23,10 @@ const App = () => {
         <Header />
 
         <div className="mx-auto grid w-full max-w-[1600px] min-w-0 flex-1 grid-cols-1 content-start lg:grid-cols-[minmax(210px,250px)_minmax(0,1fr)_minmax(220px,280px)]">
-          <div className="order-2 min-w-0 lg:sticky lg:top-20 lg:order-1 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
-            <LeftBar />
+          <div className="order-2 min-w-0 lg:order-1 lg:border-r lg:border-border">
+            <div className="lg:sticky lg:top-[68px] lg:max-h-[calc(100vh-68px)] lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <LeftBar />
+            </div>
           </div>
 
           <main className="order-1 min-w-0 px-3 py-4 sm:px-5 sm:py-6 lg:order-2 lg:px-6 xl:px-8">
@@ -49,8 +51,10 @@ const App = () => {
             </Routes>
           </main>
 
-          <div className="order-3 min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
-            <RightBar />
+          <div className="order-3 min-w-0 lg:border-l lg:border-border">
+            <div className="lg:sticky lg:top-[68px]">
+              <RightBar />
+            </div>
           </div>
         </div>
         <Footer />

@@ -1,6 +1,6 @@
 const Footer = () => {
     return (
-        <footer className="w-full bg-bg text-white">
+        <footer className="w-full border-t border-border bg-bg text-white">
             <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-between gap-3 px-4 py-5 text-center sm:flex-row sm:text-left">
                 <p className="text-xs text-gray-500">
                     &copy; {new Date().getFullYear()} PODZIEMIE CS2. Wszystkie prawa zastrzeżone.

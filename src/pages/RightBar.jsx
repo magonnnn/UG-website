@@ -87,8 +87,8 @@ const RightBar = () => {
 
     return (
         <aside className="min-w-0 space-y-4 p-3 sm:p-4">
-            <section className="overflow-hidden bg-bg">
-                <h2 className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <section className="overflow-hidden border border-border bg-bg">
+                <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                     <img src={rankingIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Ranking Podziemia
                 </h2>
@@ -117,8 +117,8 @@ const RightBar = () => {
                 </div>
             </section>
 
-            <section className="overflow-hidden bg-bg">
-                <h2 className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <section className="overflow-hidden border border-border bg-bg">
+                <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                     <img src={matchIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Dzisiejsze mecze
                 </h2>

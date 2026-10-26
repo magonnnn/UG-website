@@ -123,10 +123,10 @@ const LeftBar = () => {
 
     return (
         <aside className="partner-sidebar min-w-0 space-y-4 p-3 sm:p-4">
-            <section className="overflow-hidden bg-bg">
+            <section className="overflow-hidden border border-border bg-bg">
                 <Link
                     to="/transfers"
-                    className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400 transition-colors hover:text-white"
+                    className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400 transition-colors hover:text-white"
                 >
                     <img src={squadIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     TRANSFERS
@@ -172,8 +172,8 @@ const LeftBar = () => {
                 )}
             </section>
 
-            <section className="overflow-hidden bg-bg">
-                <h2 className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <section className="overflow-hidden border border-border bg-bg">
+                <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                     <img src={clockIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Nadchodzące turnieje
                 </h2>
@@ -199,8 +199,8 @@ const LeftBar = () => {
                     </div>
                 )}
             </section>
-            <section className="overflow-hidden bg-bg">
-                <h2 className="flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <section className="overflow-hidden border border-border bg-bg">
+                <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                     <img src={partner} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Partnerzy
                 </h2>

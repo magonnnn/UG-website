@@ -11,6 +11,7 @@ const Player = () => {
     const [loading, setLoading] = useState(true);
     const [transfer, setTransfer] = useState({});
     const [teams, setTeams] = useState([]);
+    const [faceitPlayer, setFaceitPlayer] = useState({});
 
     useEffect(() => {
         let active = true;
@@ -57,6 +58,48 @@ const Player = () => {
             active = false;
         };
     }, [id]);
+
+    useEffect(() => {
+        const API_KEY = "34bdb1e3-f715-48b3-a7e2-12f432e11b59";
+        const BASE = "https://open.faceit.com/data/v4";
+        const GAME = "cs2";
+
+        async function api(path, params = {}) {
+            const url = new URL(BASE + path);
+
+            Object.entries(params).forEach(([key, value]) => {
+                url.searchParams.set(key, value);
+            });
+
+            const response = await fetch(url, {
+                headers: {
+                    Authorization: `Bearer ${API_KEY}`,
+                    Accept: "application/json",
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`FACEIT API error: ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        async function fetchFaceitPlayer() {
+            try {
+                const faceitPlr = await api("/players", {
+                    nickname: "pederasta",
+                    game: GAME,
+                });
+
+                setFaceitPlayer(faceitPlr);
+            } catch (error) {
+                console.error("FACEIT API error:", error.message);
+            }
+        }
+
+        fetchFaceitPlayer();
+    }, []);
 
     useEffect(() => {
         async function fetchTransfer() {
@@ -164,7 +207,7 @@ const Player = () => {
                         </div>
                         {player.steam_profile && (
                             <div className="flex items-center justify-between gap-4 py-3">
-                                <dt className="text-sm text-gray-500">Steam</dt>
+                                <dt className="text-sm text-gray-500">Steam, {faceitPlayer.games?.cs2?.faceit_elo}</dt>
                                 <dd>
                                     <a
                                         href={player.steam_profile}
