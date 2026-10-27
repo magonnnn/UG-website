@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import redirectIcon from "../assets/redirect.svg";
+import faceitLogo from "../assets/faceit-logo.webp"
 
 const Player = () => {
     const location = useLocation();
@@ -32,6 +33,7 @@ const Player = () => {
                     team_history,
                     created_at,
                     steam_profile,
+                    steamid64,
                     current_team:teams!players_current_team_fkey (
                         id,
                         name,
@@ -60,9 +62,13 @@ const Player = () => {
     }, [id]);
 
     useEffect(() => {
+        let active = true;
         const API_KEY = "34bdb1e3-f715-48b3-a7e2-12f432e11b59";
         const BASE = "https://open.faceit.com/data/v4";
         const GAME = "cs2";
+        const steamid64 = player.steamid64;
+
+        if (!steamid64) return;
 
         async function api(path, params = {}) {
             const url = new URL(BASE + path);
@@ -88,18 +94,25 @@ const Player = () => {
         async function fetchFaceitPlayer() {
             try {
                 const faceitPlr = await api("/players", {
-                    nickname: "pederasta",
+                    game_player_id: steamid64,
                     game: GAME,
                 });
 
-                setFaceitPlayer(faceitPlr);
+                if (active) {
+                    setFaceitPlayer({ steamid64, profile: faceitPlr });
+                }
             } catch (error) {
-                console.error("FACEIT API error:", error.message);
+                if (active) {
+                    console.error("FACEIT API error:", error.message);
+                }
             }
         }
-
         fetchFaceitPlayer();
-    }, []);
+
+        return () => {
+            active = false;
+        };
+    }, [player.steamid64]);
 
     useEffect(() => {
         async function fetchTransfer() {
@@ -207,7 +220,11 @@ const Player = () => {
                         </div>
                         {player.steam_profile && (
                             <div className="flex items-center justify-between gap-4 py-3">
-                                <dt className="text-sm text-gray-500">Steam, {faceitPlayer.games?.cs2?.faceit_elo}</dt>
+                                <dt className="text-sm text-gray-500">
+                                    Steam{faceitPlayer.steamid64 === player.steamid64 && faceitPlayer.profile?.games?.cs2?.faceit_elo
+                                        ? ``
+                                        : ""}
+                                </dt>
                                 <dd>
                                     <a
                                         href={player.steam_profile}
@@ -220,6 +237,19 @@ const Player = () => {
                                             <img src={redirectIcon} alt="" aria-hidden="true" className="h-3.5 w-3.5 invert opacity-70" />
                                         </span>
                                     </a>
+                                </dd>
+                            </div>
+                        )}
+                        {faceitPlayer && (
+                            <div className="flex items-center justify-between gap-4 py-3">
+                                <dt className="text-sm text-gray-500">
+                                    ELO
+                                </dt>
+                                <dd className="flex flex-row items-center justify-center">
+                                    <img src={faceitLogo} alt="faceit logo" className="w-4 h-4 me-2" />
+                                    {faceitPlayer.profile?.games?.cs2?.faceit_elo && (
+                                        `${faceitPlayer.profile?.games?.cs2?.faceit_elo}`
+                                    )}
                                 </dd>
                             </div>
                         )}
