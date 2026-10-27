@@ -1,12 +1,14 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import eseaIcon from "../assets/esea.png";
 
 const Team = () => {
     const location = useLocation();
     const teamId = location.state?.id;
 
     const [teams, setTeams] = useState([]);
+    const [faceitTeam, setFaceitTeam] = useState({});
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [matches, setMatches] = useState([]);
@@ -24,7 +26,19 @@ const Team = () => {
 
             setLoading(true);
             const [teamResult, firstTeamMatches, secondTeamMatches] = await Promise.all([
-                supabase.from("teams").select("*").eq("id", teamId),
+                supabase.from("teams").select(`
+                    id, 
+                    name,
+                    roster,
+                    logo,
+                    points,
+                    player1,
+                    player2,
+                    player3,
+                    player4,
+                    player5,
+                    faceit_id
+                `).eq("id", teamId),
                 supabase
                     .from("matches")
                     .select(`
@@ -84,6 +98,70 @@ const Team = () => {
         };
     }, [teamId]);
 
+
+    const faceitId = teams?.[0]?.faceit_id;
+
+    useEffect(() => {
+        if (!faceitId) {
+            setFaceitTeam({});
+            return;
+        }
+
+        let active = true;
+
+        async function getTeamInfo() {
+            const url = `https://www.faceit.com/api/team-leagues/v1/teams/${encodeURIComponent(faceitId)}/profile/leagues/current`;
+            try {
+                const { data, error } = await supabase.functions.invoke(
+                    "faceit-team-league",
+                    {
+                        body: { faceitId },
+                    }
+                );
+
+                console.log("FACEIT team:", data);
+                console.log("FACEIT team keys:", Object.keys(data ?? {}));
+
+                if (error) {
+                    console.error("Edge Function error:", error);
+
+                    // Supabase may include the function's response body here.
+                    if (error.context) {
+                        try {
+                            const details = await error.context.json();
+                            console.error("Edge Function response:", details);
+                        } catch {
+                            console.error("Could not read Edge Function response body.");
+                        }
+                    }
+
+                    throw error;
+                }
+
+                if (data?.error) {
+                    throw new Error(data.error);
+                }
+
+                if (active) {
+                    setFaceitTeam(data);
+                    console.log("FACEIT league data:", data);
+                }
+            } catch (error) {
+                if (active) {
+                    console.error("FACEIT request failed:", error);
+                    console.error("Request URL:", url);
+                }
+            }
+        }
+
+        getTeamInfo();
+
+        return () => {
+            active = false;
+        };
+    }, [faceitId]);
+
+
     const team = teams[0];
     const profileUrl = supabase.storage.from("icons").getPublicUrl("profile-default.svg").data.publicUrl;
     const logoUrl = team?.logo
@@ -125,6 +203,19 @@ const Team = () => {
                         <h2 className="mt-4 break-words text-center text-xl font-bold text-white">{team.name}</h2>
                         <p className="mt-2 text-sm text-gray-400">
                             <span className="font-semibold tabular-nums text-white">{team.points ?? 0}</span> pkt
+                        </p>
+                        <p className="mt-4">
+                            {faceitTeam?.payload?.season_standing?.division_name ? (
+                                <div className="flex flex-row justify-center items-center">
+                                    <img src={eseaIcon} alt="esea icon" className="w-5 h-5 me-1 hover:opacity-70 transform-colors" />
+                                    <p>ESEA: {faceitTeam?.payload?.season_standing?.division_name}</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-row justify-center items-center">
+                                    <img src={eseaIcon} alt="esea icon" className="w-5 h-5 me-1 hover:opacity-70 transform-colors" />
+                                    <p>ESEA: Brak</p>
+                                </div>
+                            )}
                         </p>
                     </div>
                 </section>

@@ -167,6 +167,11 @@ const AdminPanel = () => {
         ""
     );
 
+    const [newFaceitID, setNewFaceitID] = useSessionState(
+        "admin-new-faceit-id",
+        ""
+    );
+
     const [selectedTeamId, setSelectedTeamId] = useSessionState(
         "admin-selected-team-id",
         ""
@@ -175,6 +180,11 @@ const AdminPanel = () => {
         "admin-updated-name",
         ""
     );
+
+    const [updatedFaceitId, setUpdatedFaceitId] = useSessionState(
+        "admin-updated-faceit-id",
+        ""
+    )
 
     const [loading, setLoading] = useState(false);
     const [feedback, setFeedback] = useState({ text: "", type: "" });
@@ -280,6 +290,7 @@ const AdminPanel = () => {
     const resetEditor = () => {
         setSelectedTeamId("");
         setUpdatedName("");
+        setUpdatedFaceitId("");
         setEditRoster([]);
         setRosterInputs({ ...emptyRoster });
         setReducePoints("");
@@ -295,6 +306,7 @@ const AdminPanel = () => {
 
         setSelectedTeamId(team ? String(team.id) : "");
         setUpdatedName(team?.name ?? "");
+        setUpdatedFaceitId(team?.faceit_id ?? "");
         setEditRoster(nextRoster.map((playerId) => (playerId == null ? "" : String(playerId))));
         setReducePoints("");
         setIncreasePoints("");
@@ -371,6 +383,7 @@ const AdminPanel = () => {
         }
 
         const name = updatedName.trim();
+        const faceit_id = updatedFaceitId.trim();
         const pointsToReduce = Number(reducePoints || 0);
         const pointsToIncrease = Number(increasePoints || 0);
 
@@ -471,6 +484,7 @@ const AdminPanel = () => {
             .from("teams")
             .update({
                 name,
+                faceit_id,
                 roster: rosterPlayers.map((player) => player?.name ?? "").filter(Boolean),
                 ...Object.fromEntries(
                     rosterIds.map((playerId, index) => [`player${index + 1}`, playerId])
@@ -577,6 +591,7 @@ const AdminPanel = () => {
 
         if (teamsRefreshed && playersRefreshed) {
             setUpdatedName(name);
+            setUpdatedFaceitId(faceit_id);
             setLogoFile(null);
             form.querySelectorAll('input[type="file"]').forEach((input) => {
                 input.value = "";
@@ -956,6 +971,7 @@ const AdminPanel = () => {
         const form = event.currentTarget;
 
         const name = newTeamName.trim();
+        const faceitId = newFaceitID.trim();
 
         if (!name) {
             showMessage("Podaj nazwę nowej drużyny.", "error");
@@ -1004,6 +1020,7 @@ const AdminPanel = () => {
         const { error } = await supabase.from("teams").insert([
             {
                 name,
+                faceit_id: faceitId,
                 points: 0,
                 roster: [],
                 logo: logoPath,
@@ -1021,6 +1038,7 @@ const AdminPanel = () => {
 
         if (refreshed) {
             setNewTeamName("");
+            setNewFaceitID("");
             setLogoFile(null);
             form.reset();
             showMessage("Nowa drużyna została dodana.", "success");
@@ -1301,7 +1319,7 @@ const AdminPanel = () => {
                                 >
                                     Nazwa drużyny
                                 </label>
-                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-2">
 
                                     <input
                                         id="updated-name"
@@ -1309,6 +1327,22 @@ const AdminPanel = () => {
                                         value={updatedName}
                                         onChange={(event) =>
                                             setUpdatedName(event.target.value)
+                                        }
+                                        className="mb-4 mt-2 w-full min-w-0 border p-2.5 text-white"
+                                        required
+                                    />
+                                    <label
+                                        htmlFor="updated-faceit-id"
+                                        className="text-white"
+                                    >
+                                        ID drużyny FACEIT
+                                    </label>
+                                    <input
+                                        id="updated-faceit-id"
+                                        type="text"
+                                        value={updatedFaceitId}
+                                        onChange={(event) =>
+                                            setUpdatedFaceitId(event.target.value)
                                         }
                                         className="mb-4 mt-2 w-full min-w-0 border p-2.5 text-white"
                                         required
@@ -1420,6 +1454,19 @@ const AdminPanel = () => {
                             placeholder="Nazwa drużyny..."
                             value={newTeamName}
                             onChange={(event) => setNewTeamName(event.target.value)}
+                            className="w-full min-w-0 border p-2.5 text-white"
+                            required
+                        />
+                        <label htmlFor="teamFaceitId" className="block text-white my-4">
+                            ID drużyny FACEIT
+                        </label>
+                        <input
+                            id="teamFaceitId"
+                            type="text"
+                            name="teamFaceitId"
+                            placeholder="ID drużyny FACEIT"
+                            value={newFaceitID}
+                            onChange={(event) => setNewFaceitID(event.target.value)}
                             className="w-full min-w-0 border p-2.5 text-white"
                             required
                         />
