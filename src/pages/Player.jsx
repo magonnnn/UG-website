@@ -100,6 +100,7 @@ const Player = () => {
 
                 if (active) {
                     setFaceitPlayer({ steamid64, profile: faceitPlr });
+                    console.log(faceitPlr)
                 }
             } catch (error) {
                 if (active) {
@@ -163,6 +164,7 @@ const Player = () => {
         ? supabase.storage.from("logos").getPublicUrl(player.current_team.logo).data.publicUrl
         : null;
     const joinedAt = transfer.created_at ?? player.created_at;
+    const faceitUrl = faceitPlayer.profile?.faceit_url?.replace("{lang}", "pl");
 
     if (loading) {
         return <p className="py-8 text-center text-sm text-gray-400">Ładowanie profilu gracza...</p>;
@@ -246,7 +248,12 @@ const Player = () => {
                                     ELO
                                 </dt>
                                 <dd className="flex flex-row items-center justify-center">
-                                    <img src={faceitLogo} alt="faceit logo" className="w-4 h-4 me-2" />
+
+                                    {faceitUrl && (
+                                        <a href={faceitUrl} target="_blank" rel="noopener noreferrer">
+                                            <img src={faceitLogo} alt="faceit logo" className="w-4 h-4 me-2 hover:opacity-70 transform-colors" />
+                                        </a>
+                                    )}
                                     {faceitPlayer.profile?.games?.cs2?.faceit_elo && (
                                         `${faceitPlayer.profile?.games?.cs2?.faceit_elo}`
                                     )}
@@ -297,8 +304,8 @@ const Player = () => {
                         )}
                     </section>
                 </div>
-            </div>
-        </section>
+            </div >
+        </section >
     );
 };
 

@@ -204,7 +204,7 @@ const LeftBar = () => {
                     <img src={partner} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Partnerzy
                 </h2>
-                <div className="partner-sidebar-grid px-3 pb-3">
+                <div className="partner-sidebar-grid px-3 py-3">
                     {reducedPartners.map((partnerInfo) => (
                         <PartnerCard key={partnerInfo.name} partner={partnerInfo} compact />
                     ))}
