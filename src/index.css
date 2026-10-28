@@ -89,6 +89,10 @@
   gap: 0.75rem;
 }
 
+.snowy-bg {
+  background-image: url(../src/assets/snowy.jpg);
+}
+
 @container (min-width: 560px) {
   .partner-sidebar-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

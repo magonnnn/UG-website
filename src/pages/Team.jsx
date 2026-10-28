@@ -250,46 +250,6 @@ const Team = () => {
                     )}
                 </section>
 
-                <section className="min-w-0 bg-bg lg:col-span-2">
-                    <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
-                        Mecze
-                    </h2>
-                    {matchesError ? (
-                        <p role="status" className="px-4 py-5 text-sm text-red-300">{matchesError}</p>
-                    ) : matches.length === 0 ? (
-                        <p className="px-4 py-5 text-sm text-gray-500">Brak dostępnych meczów drużyny.</p>
-                    ) : (
-                        <div className="space-y-1">
-                            {matches.map((match) => (
-                                <Link
-                                    to="/match"
-                                    state={{ id: match.id }}
-                                    key={match.id}
-                                    className="flex min-w-0 flex-col gap-2 px-4 py-3 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div className="min-w-0">
-                                        <p className="truncate text-xs font-medium text-gray-500">
-                                            {match.league?.name ?? "Mecz"}
-                                        </p>
-                                        <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
-                                            <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
-                                            <span className="shrink-0 text-[10px] font-bold text-red-400">VS</span>
-                                            <span className="min-w-0 truncate">{match.team_2?.name ?? "Drużyna 2"}</span>
-                                        </div>
-                                    </div>
-                                    <time className="shrink-0 text-xs text-gray-500">
-                                        {match.time
-                                            ? new Date(match.time).toLocaleString("pl-PL", {
-                                                dateStyle: "medium",
-                                                timeStyle: "short",
-                                            })
-                                            : "Termin do ustalenia"}
-                                    </time>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                </section>
                 <section className="min-w-0 overflow-hidden bg-bg lg:col-span-2">
                     <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-3">
                         <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400">
@@ -356,6 +316,46 @@ const Team = () => {
                         <p className="px-4 py-6 text-center text-sm font-medium text-gray-500">
                             Brak danych ESEA dla tej drużyny.
                         </p>
+                    )}
+                </section>
+                <section className="min-w-0 bg-bg lg:col-span-2">
+                    <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Mecze
+                    </h2>
+                    {matchesError ? (
+                        <p role="status" className="px-4 py-5 text-sm text-red-300">{matchesError}</p>
+                    ) : matches.length === 0 ? (
+                        <p className="px-4 py-5 text-sm text-gray-500">Brak dostępnych meczów drużyny.</p>
+                    ) : (
+                        <div className="space-y-1">
+                            {matches.map((match) => (
+                                <Link
+                                    to="/match"
+                                    state={{ id: match.id }}
+                                    key={match.id}
+                                    className="flex min-w-0 flex-col gap-2 px-4 py-3 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="truncate text-xs font-medium text-gray-500">
+                                            {match.league?.name ?? "Mecz"}
+                                        </p>
+                                        <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
+                                            <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
+                                            <span className="shrink-0 text-[10px] font-bold text-red-400">VS</span>
+                                            <span className="min-w-0 truncate">{match.team_2?.name ?? "Drużyna 2"}</span>
+                                        </div>
+                                    </div>
+                                    <time className="shrink-0 text-xs text-gray-500">
+                                        {match.time
+                                            ? new Date(match.time).toLocaleString("pl-PL", {
+                                                dateStyle: "medium",
+                                                timeStyle: "short",
+                                            })
+                                            : "Termin do ustalenia"}
+                                    </time>
+                                </Link>
+                            ))}
+                        </div>
                     )}
                 </section>
             </div>
