@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import logo from "../assets/logo.png";
+import calBg from "../assets/calendar-bg.png";
 
 const getUserName = (user) => {
     return (
@@ -202,6 +203,13 @@ const Navbar = () => {
                         >
                             Partnerzy
                         </Link>
+                        <Link
+                            to="/calendar"
+                            className="shrink-0 rounded calendar-button px-3 py-2 text-sm bg-linear-to-br from-[#1E90FF] to-[#99BADD] font-black text-white shadow-sm transition-all duration-200 hover:brightness-110"
+                        >
+                            Kalendarz adwentowy
+                        </Link>
+
                     </div>
 
                     {/* {user && (
@@ -244,7 +252,7 @@ const Navbar = () => {
 
                         <button
                             type="button"
-                            className="shrink-0 rounded-md bg-red-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
+                            className="shrink-0 rounded-md bg-red-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:cursor-pointer hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
                             onClick={user ? logout : login}
                             disabled={!authReady}
                         >

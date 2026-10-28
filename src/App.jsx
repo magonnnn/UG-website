@@ -7,14 +7,15 @@ import Ranking from "./pages/Ranking";
 import Contact from "./pages/Contact";
 import Team from "./pages/Team";
 import AdminPanel from "./pages/AdminPanel";
-import Player from "./pages/Player"
-import Players from "./pages/Players"
-import LeftBar from "./pages/LeftBar"
-import RightBar from "./pages/RightBar"
-import Match from './pages/Match'
+import Player from "./pages/Player";
+import Players from "./pages/Players";
+import LeftBar from "./pages/LeftBar";
+import RightBar from "./pages/RightBar";
+import Match from './pages/Match';
 import Article from "./pages/Article";
-import Partners from "./pages/Partners"
-import Transfers from "./pages/Transfers"
+import Partners from "./pages/Partners";
+import Transfers from "./pages/Transfers";
+import Calendar from "./pages/Calendar";
 
 const App = () => {
   return (
@@ -46,6 +47,7 @@ const App = () => {
                   </AdminRoute>
                 }
               />
+              <Route path="/calendar" element={<Calendar />} />
               <Route path="/player" element={<Player />} />
               <Route path="/players" element={<Players />} />
             </Routes>
