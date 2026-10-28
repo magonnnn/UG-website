@@ -122,7 +122,7 @@ const LeftBar = () => {
     };
 
     return (
-        <aside className="partner-sidebar min-w-0 space-y-4 p-3 sm:p-4">
+        <aside className="min-w-0 space-y-4 p-3 sm:p-4">
             <section className="overflow-hidden border border-border bg-bg">
                 <Link
                     to="/transfers"
@@ -204,7 +204,7 @@ const LeftBar = () => {
                     <img src={partner} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Partnerzy
                 </h2>
-                <div className="partner-sidebar-grid px-3 py-3">
+                <div className="px-3 py-3">
                     {reducedPartners.map((partnerInfo) => (
                         <PartnerCard key={partnerInfo.name} partner={partnerInfo} compact />
                     ))}

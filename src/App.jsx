@@ -19,12 +19,12 @@ import Transfers from "./pages/Transfers"
 const App = () => {
   return (
     <HashRouter>
-      <div className="flex min-h-screen w-full flex-col overflow-x-clip bg-bg-dark text-text">
+      <div className="flex min-h-screen w-full flex-col overflow-x-clip text-text">
         <Header />
 
         <div className="mx-auto grid w-full max-w-[1600px] min-w-0 flex-1 grid-cols-1 content-start lg:grid-cols-[minmax(210px,250px)_minmax(0,1fr)_minmax(220px,280px)]">
           <div className="order-2 min-w-0 lg:order-1 lg:border-r lg:border-border">
-            <div className="lg:sticky lg:top-[68px] lg:max-h-[calc(100vh-68px)] lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div>
               <LeftBar />
             </div>
           </div>
@@ -52,7 +52,7 @@ const App = () => {
           </main>
 
           <div className="order-3 min-w-0 lg:border-l lg:border-border">
-            <div className="lg:sticky lg:top-[68px]">
+            <div>
               <RightBar />
             </div>
           </div>

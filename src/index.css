@@ -27,11 +27,25 @@
   body {
     min-width: 320px;
     min-height: 100vh;
-    background: var(--color-bg-dark);
+    background-color: var(--color-bg-dark);
     color: var(--color-text);
     font-size: 15px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+
+    position: relative;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("./assets/pattern.png");
+    background-repeat: repeat;
+    opacity: 0.4;
+    /* Adjust opacity here */
+    pointer-events: none;
+    z-index: -1;
   }
 
   button,

@@ -2,6 +2,7 @@ import { useLocation, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import eseaIcon from "../assets/esea.png";
+import redirectIcon from "../assets/redirect.svg";
 
 const Team = () => {
     const location = useLocation();
@@ -161,6 +162,20 @@ const Team = () => {
         };
     }, [faceitId]);
 
+    const wins = Number(faceitTeam?.payload?.season_standing?.wins);
+    const losses = Number(faceitTeam?.payload?.season_standing?.losses);
+
+    const totalMatches = wins + losses;
+
+    const winrate =
+        Number.isFinite(wins) &&
+            Number.isFinite(losses) &&
+            wins >= 0 &&
+            losses >= 0 &&
+            totalMatches > 0
+            ? ((wins / totalMatches) * 100).toFixed(1)
+            : null;
+
 
     const team = teams[0];
     const profileUrl = supabase.storage.from("icons").getPublicUrl("profile-default.svg").data.publicUrl;
@@ -203,19 +218,6 @@ const Team = () => {
                         <h2 className="mt-4 break-words text-center text-xl font-bold text-white">{team.name}</h2>
                         <p className="mt-2 text-sm text-gray-400">
                             <span className="font-semibold tabular-nums text-white">{team.points ?? 0}</span> pkt
-                        </p>
-                        <p className="mt-4">
-                            {faceitTeam?.payload?.season_standing?.division_name ? (
-                                <div className="flex flex-row justify-center items-center">
-                                    <img src={eseaIcon} alt="esea icon" className="w-5 h-5 me-1 hover:opacity-70 transform-colors" />
-                                    <p>ESEA: {faceitTeam?.payload?.season_standing?.division_name}</p>
-                                </div>
-                            ) : (
-                                <div className="flex flex-row justify-center items-center">
-                                    <img src={eseaIcon} alt="esea icon" className="w-5 h-5 me-1 hover:opacity-70 transform-colors" />
-                                    <p>ESEA: Brak</p>
-                                </div>
-                            )}
                         </p>
                     </div>
                 </section>
@@ -286,6 +288,74 @@ const Team = () => {
                                 </Link>
                             ))}
                         </div>
+                    )}
+                </section>
+                <section className="min-w-0 overflow-hidden bg-bg lg:col-span-2">
+                    <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-3">
+                        <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400">
+                            <span className="flex h-7 w-7 items-center justify-center p-1">
+                                <img src={eseaIcon} alt="" aria-hidden="true" className="h-full w-full object-contain" />
+                            </span>
+                            ESEA
+                        </h2>
+                        {faceitId && (
+                            <a
+                                href={`https://faceit.com/pl/teams/${faceitId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:border-primary hover:text-white"
+                            >
+                                Profil
+                                <img src={redirectIcon} alt="" aria-hidden="true" className="h-3.5 w-3.5 invert opacity-70" />
+                            </a>
+                        )}
+                    </div>
+                    {faceitTeam?.payload?.season_standing ? (
+                        <>
+                            <div className="grid grid-cols-3 gap-2 p-3 sm:gap-4 sm:p-5">
+                                <div className="flex min-w-0 flex-col items-center justify-center bg-bg-dark/40 px-2 py-4 sm:py-5">
+                                    <span className="text-3xl font-bold tabular-nums text-success sm:text-4xl">
+                                        {faceitTeam.payload.season_standing.wins ?? "—"}
+                                    </span>
+                                    <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">
+                                        Wygrane
+                                    </span>
+                                </div>
+                                <div className="flex min-w-0 flex-col items-center justify-center bg-bg-dark/40 px-2 py-4 text-center sm:py-5">
+                                    <span className="text-3xl font-bold tabular-nums text-white sm:text-4xl">
+                                        {faceitTeam.payload.season_standing.placement?.left
+                                            ? `#${faceitTeam.payload.season_standing.placement.left}`
+                                            : "—"}
+                                    </span>
+                                    <span className="mt-1 truncate text-[10px] font-semibold uppercase tracking-wider text-gray-400 sm:text-xs">
+                                        {[
+                                            faceitTeam.payload.season_standing.division_name,
+                                            faceitTeam.payload.season_standing.conference_name,
+                                        ].filter(Boolean).join(" ") || "Pozycja"}
+                                    </span>
+                                </div>
+                                <div className="flex min-w-0 flex-col items-center justify-center bg-bg-dark/40 px-2 py-4 sm:py-5">
+                                    <span className="text-3xl font-bold tabular-nums text-danger sm:text-4xl">
+                                        {faceitTeam.payload.season_standing.losses ?? "—"}
+                                    </span>
+                                    <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">
+                                        Przegrane
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="px-4 pb-3">
+                                <div className="mb-2 flex items-center justify-center gap-3 text-md">
+                                    <span className="font-medium text-gray-500">Winrate</span>
+                                    <span className="font-semibold tabular-nums text-gray-300">
+                                        {winrate != null ? `${winrate}%` : "Brak danych"}
+                                    </span>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <p className="px-4 py-6 text-center text-sm font-medium text-gray-500">
+                            Brak danych ESEA dla tej drużyny.
+                        </p>
                     )}
                 </section>
             </div>
