@@ -231,7 +231,7 @@ const Calendar = () => {
                             userRewards.length > 0 ? (
                                 <div className="grid gap-3 sm:grid-cols-2 py-4">
                                     {userRewards.map((reward) => (
-                                        <article key={reward.id} className="border-2 border-border bg-bg p-4">
+                                        <article key={reward.id} className="border border-white/10 p-4">
                                             <h2 className="font-bold text-white">{reward.name}</h2>
                                             {reward.description && (
                                                 <p className="mt-2 text-sm text-gray-300">{reward.description}</p>

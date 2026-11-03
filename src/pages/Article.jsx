@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import DOMPurify from "dompurify";
 import pageOut from "../assets/page-out.svg";
 
 const Article = () => {
@@ -63,6 +64,7 @@ const Article = () => {
     const coverUrl = supabase.storage
         .from("articles")
         .getPublicUrl(article.cover_image).data.publicUrl;
+    const hasRichContent = /<\/?(p|h[1-6]|ul|ol|li|strong|em|a|blockquote|img|br)\b/i.test(article.content);
 
     return (
         <article className="mx-auto min-w-0 max-w-4xl">
@@ -94,9 +96,20 @@ const Article = () => {
                 alt=""
                 className="mb-6 aspect-video w-full object-cover"
             />
-            <div className="whitespace-pre-wrap break-words text-base leading-8 text-gray-200">
-                {article.content}
-            </div>
+            {hasRichContent ? (
+                <div
+                    className="article-body break-words text-base leading-8 text-gray-200"
+                    dangerouslySetInnerHTML={{
+                        __html: DOMPurify.sanitize(article.content, {
+                            USE_PROFILES: { html: true },
+                        }),
+                    }}
+                />
+            ) : (
+                <div className="whitespace-pre-wrap break-words text-base leading-8 text-gray-200">
+                    {article.content}
+                </div>
+            )}
         </article>
     );
 };

@@ -16,6 +16,7 @@ import Article from "./pages/Article";
 import Partners from "./pages/Partners";
 import Transfers from "./pages/Transfers";
 import Calendar from "./pages/Calendar";
+import Matches from "./pages/Matches";
 
 const App = () => {
   return (
@@ -50,6 +51,7 @@ const App = () => {
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/player" element={<Player />} />
               <Route path="/players" element={<Players />} />
+              <Route path="/matches" element={<Matches />} />
             </Routes>
           </main>
 

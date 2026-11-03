@@ -172,7 +172,7 @@ const Player = () => {
 
     if (error || !player.name) {
         return (
-            <p role="status" className="my-6 border border-white/10 bg-bg p-4 text-sm text-red-300">
+            <p role="status" className="my-6 border border-white/10 p-4 text-sm text-red-300">
                 {error || "Nie znaleziono gracza."}
             </p>
         );
@@ -185,8 +185,8 @@ const Player = () => {
             </header>
 
             <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-                <section className="min-w-0 bg-bg">
-                    <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                <section className="min-w-0">
+                    <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                         Profil
                     </h2>
                     <div className="flex flex-col items-center px-4 py-6">
@@ -264,15 +264,15 @@ const Player = () => {
                 </section>
 
                 <div className="grid min-w-0 content-start gap-4">
-                    <section className="min-w-0 bg-bg">
-                        <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <section className="min-w-0">
+                        <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                             Statystyki
                         </h2>
                         <p className="px-4 py-5 text-sm text-gray-500">Brak dostępnych statystyk gracza.</p>
                     </section>
 
-                    <section className="min-w-0 bg-bg">
-                        <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <section className="min-w-0">
+                        <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                             Historia drużyn
                         </h2>
                         {teamHistory.length > 0 ? (

@@ -85,7 +85,7 @@ const Match = () => {
 
     if (error) {
         return (
-            <section className="my-6 border border-white/10 bg-bg p-6 text-center">
+            <section className="my-6 border border-white/10 p-6 text-center">
                 <p className="text-gray-300">{error}</p>
                 <Link to="/" className="mt-4 inline-block text-sm font-semibold text-red-400 hover:text-red-300">
                     Wróć na stronę główną
@@ -100,8 +100,8 @@ const Match = () => {
     ];
 
     return (
-        <article className="my-6 overflow-hidden bg-bg">
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#202329] px-4 py-3 sm:px-6">
+        <article className="my-6 min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-400">
                         {match.league?.name ?? "Mecz"}

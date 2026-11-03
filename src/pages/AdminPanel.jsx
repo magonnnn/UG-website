@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import DOMPurify from "dompurify";
 import settingsIcon from "../assets/settings.svg";
 import addIcon from "../assets/add.svg";
 import acceptIcon from "../assets/accept.svg";
@@ -9,6 +10,8 @@ import fileIcon from "../assets/file.svg";
 import clockIcon from "../assets/clock.svg";
 import warningIcon from "../assets/warning.svg";
 import inputIcon from "../assets/input.svg";
+
+const ArticleEditor = lazy(() => import("../components/ArticleEditor"));
 
 const useSessionState = (key, initialValue) => {
     const [value, setValue] = useState(() => {
@@ -151,6 +154,7 @@ const AdminPanel = () => {
     const [articleAuthor, setArticleAuthor] = useSessionState("admin-article-author", "");
     const [articleContent, setArticleContent] = useSessionState("admin-article-content", "");
     const [articleCoverFile, setArticleCoverFile] = useSessionFileState("admin-article-cover");
+    const [articleImageUploading, setArticleImageUploading] = useState(false);
     const [selectedPlayerId, setSelectedPlayerId] = useSessionState("admin-selected-player-id", "");
     const [updatedPlayerName, setUpdatedPlayerName] = useSessionState("admin-updated-player-name", "");
     const [updatedPlayerSteam, setUpdatedPlayerSteam] = useSessionState("admin-updated-player-steam", "");
@@ -1053,9 +1057,13 @@ const AdminPanel = () => {
 
         const title = articleTitle.trim();
         const author = articleAuthor.trim();
-        const content = articleContent.trim();
+        const content = DOMPurify.sanitize(articleContent.trim(), {
+            USE_PROFILES: { html: true },
+        });
+        const contentText = document.createElement("div");
+        contentText.innerHTML = content;
 
-        if (!title || !author || !content || !articleCoverFile) {
+        if (!title || !author || !contentText.textContent.trim() || !articleCoverFile) {
             showMessage("Uzupełnij tytuł, autora, treść i wybierz zdjęcie okładkowe.", "error");
             return;
         }
@@ -1157,6 +1165,36 @@ const AdminPanel = () => {
         form.reset();
         showMessage("Artykuł został dodany.", "success");
         setLoading(false);
+    };
+
+    const uploadArticleImage = async (file) => {
+        const allowedTypes = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp",
+        };
+        const extension = allowedTypes[file.type];
+
+        if (!extension) {
+            throw new Error("Wybierz obraz PNG, JPG lub WebP.");
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            throw new Error("Obraz może mieć maksymalnie 10 MB.");
+        }
+
+        const imagePath = `${crypto.randomUUID()}.${extension}`;
+        const { error } = await supabase.storage
+            .from("articles")
+            .upload(imagePath, file, {
+                contentType: file.type,
+                upsert: false,
+            });
+
+        if (error) {
+            throw new Error(`Nie udało się przesłać obrazu: ${error.message}`);
+        }
+
+        return supabase.storage.from("articles").getPublicUrl(imagePath).data.publicUrl;
     };
 
     const updateRoster = (index, playerId) => {
@@ -1285,7 +1323,7 @@ const AdminPanel = () => {
             }
             <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
 
-                <form onSubmit={updateDatabase} className="min-w-0 border border-white/10 bg-bg">
+                <form onSubmit={updateDatabase} className="min-w-0 border border-white/10">
                     <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Edycja drużyny
                     </h2>
@@ -1439,7 +1477,7 @@ const AdminPanel = () => {
                         </div>
                     </div>
                 </form>
-                <form className="flex min-w-0 flex-col gap-3 border border-white/10 bg-bg" onSubmit={addTeam}>
+                <form className="flex min-w-0 flex-col gap-3 border border-white/10" onSubmit={addTeam}>
                     <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Dodanie drużyny
                     </h2>
@@ -1498,44 +1536,47 @@ const AdminPanel = () => {
                         </button>
                     </div>
                 </form>
-                <form onSubmit={addArticle} className="min-w-0 border border-white/10 bg-bg">
+                <form onSubmit={addArticle} className="min-w-0 border border-white/10 xl:col-span-2">
                     <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Dodanie artykułu
                     </h2>
-                    <div className="grid gap-4 p-4">
-                        <div>
-                            <label htmlFor="article-title" className="mb-2 flex gap-2 items-center block text-white">
-                                <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
-                                Tytuł
-                            </label>
-                            <input
-                                id="article-title"
-                                type="text"
-                                value={articleTitle}
-                                onChange={(event) => setArticleTitle(event.target.value)}
-                                className="w-full min-w-0 border p-2.5"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="article-title" className="mb-2 flex gap-2 items-center block text-white">
-                                <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
-                                Autor
-                            </label>
-                            <input
-                                id="article-author"
-                                type="text"
-                                value={articleAuthor}
-                                onChange={(event) => setArticleAuthor(event.target.value)}
-                                className="w-full min-w-0 border p-2.5"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="article-cover" className="sr-only">Wybierz miniaturkę artykułu</label>
-                            <label className="mt-4 flex cursor-pointer items-center justify-center rounded border border-white/10 bg-bg-light px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-highlight">
-                                <img src={fileIcon} alt="" aria-hidden="true" className="mr-2 h-4 w-4 invert opacity-70" />
-                                {logoFile?.name ?? "Wybierz miniaturkę artykułu"}
+                    <div className="grid gap-5 p-4 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+                        <div className="grid content-start gap-4">
+                            <div>
+                                <label htmlFor="article-title" className="mb-2 flex items-center gap-2 text-white">
+                                    <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                                    Tytuł
+                                </label>
+                                <input
+                                    id="article-title"
+                                    type="text"
+                                    value={articleTitle}
+                                    onChange={(event) => setArticleTitle(event.target.value)}
+                                    className="w-full min-w-0 border p-2.5"
+                                    placeholder="Wpisz tytuł artykułu"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="article-author" className="mb-2 flex items-center gap-2 text-white">
+                                    <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                                    Autor
+                                </label>
+                                <input
+                                    id="article-author"
+                                    type="text"
+                                    value={articleAuthor}
+                                    onChange={(event) => setArticleAuthor(event.target.value)}
+                                    className="w-full min-w-0 border p-2.5"
+                                    placeholder="Imię lub pseudonim autora"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="article-cover" className="mb-2 flex items-center gap-2 text-white">
+                                    <img src={fileIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                                    Okładka artykułu
+                                </label>
                                 <input
                                     type="file"
                                     id="article-cover"
@@ -1543,57 +1584,51 @@ const AdminPanel = () => {
                                     onChange={(event) =>
                                         setArticleCoverFile(event.target.files?.[0] ?? null)
                                     }
-                                    className="hidden"
+                                    className="w-full min-w-0 border p-2.5 text-sm file:mr-3 file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
                                 />
-                            </label>
-                        </div>
-                        {/* <div>
-
-                            <label htmlFor="article-cover" className="mb-2 block text-white">
-                                Zdjęcie okładkowe
-                            </label>
-                            <input
-                                id="article-cover"
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                onChange={(event) =>
-                                    setArticleCoverFile(event.target.files?.[0] ?? null)
-                                }
-                                className="w-full min-w-0 border p-2.5"
-                            />
-                            {articleCoverFile && (
-                                <p className="mt-2 text-xs text-gray-400">
-                                    Wybrano: {articleCoverFile.name}
+                                <p className="mt-2 text-xs text-gray-500">
+                                    PNG, JPG lub WebP · maksymalnie 10 MB
                                 </p>
-                            )}
-                        </div> */}
-                        <div>
-                            <label htmlFor="article-title" className="mb-2 flex gap-2 items-center block text-white">
-                                <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
-                                Treść
-                            </label>
-                            <textarea
-                                id="article-content"
-                                rows={10}
-                                value={articleContent}
-                                onChange={(event) => setArticleContent(event.target.value)}
-                                className="w-full min-w-0 border p-2.5"
-                                required
-                            />
+                                {articleCoverFile && (
+                                    <p className="mt-2 truncate text-xs text-gray-400">
+                                        Wybrano: {articleCoverFile.name}
+                                    </p>
+                                )}
+                            </div>
                         </div>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <span className="inline-flex items-center gap-2">
-                                <img src={addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
-                                {loading ? "Przetwarzanie..." : "Dodaj artykuł"}
-                            </span>
-                        </button>
+                        <div className="min-w-0">
+                            <label htmlFor="article-content" className="mb-2 flex items-center gap-2 text-white">
+                                <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                                Treść artykułu
+                            </label>
+                            <Suspense fallback={<p className="border border-white/10 p-4 text-sm text-gray-400">Ładowanie edytora...</p>}>
+                                <ArticleEditor
+                                    value={articleContent}
+                                    onChange={setArticleContent}
+                                    onUploadImage={uploadArticleImage}
+                                    onUploadingChange={setArticleImageUploading}
+                                    onError={(error) => {
+                                        console.error("Error uploading article image:", error);
+                                        showMessage(error.message || "Nie udało się dodać obrazu.", "error");
+                                    }}
+                                />
+                            </Suspense>
+                        </div>
+                        <div className="xl:col-span-2">
+                            <button
+                                type="submit"
+                                disabled={loading || articleImageUploading}
+                                className="w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <span className="inline-flex items-center gap-2">
+                                    <img src={addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                    {loading ? "Przetwarzanie..." : "Opublikuj artykuł"}
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 </form>
-                <form onSubmit={addPlayer} className="mb-4 min-w-0 border border-white/10 bg-bg">
+                <form onSubmit={addPlayer} className="mb-4 min-w-0 border border-white/10">
                     <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Dodanie gracza
                     </h2>
@@ -1652,7 +1687,7 @@ const AdminPanel = () => {
                         </button>
                     </div>
                 </form>
-                <form onSubmit={updatePlayer} className="mb-4 min-w-0 border border-white/10 bg-bg">
+                <form onSubmit={updatePlayer} className="mb-4 min-w-0 border border-white/10">
                     <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         Edytuj gracza
                     </h2>
@@ -1735,7 +1770,7 @@ const AdminPanel = () => {
                         </button>
                     </div>
                 </form>
-                <section className="min-w-0 border border-white/10 bg-bg xl:col-span-2">
+                <section className="min-w-0 border border-white/10 xl:col-span-2">
                     <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
                         <img src={clockIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
                         Mecze

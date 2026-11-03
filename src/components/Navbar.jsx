@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import logo from "../assets/logo.png";
-import calBg from "../assets/calendar-bg.png";
+import menuIcon from "../assets/menu.svg";
 
 const getUserName = (user) => {
     return (
@@ -63,6 +63,31 @@ const Navbar = () => {
     const [user, setUser] = useState(null);
     const [profile, setProfile] = useState(null);
     const [authReady, setAuthReady] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    const navItems = [
+        { to: "/", label: "Start" },
+        { to: "/ranking", label: "Ranking" },
+        { to: "/players", label: "Gracze" },
+        { to: "/matches", label: "Mecze" },
+        { to: "/contact", label: "Kontakt" },
+        { to: "/partners", label: "Partnerzy" },
+        { to: "/calendar", label: "Kalendarz adwentowy", featured: true },
+    ];
+
+    const renderNavLinks = (mobile = false) => navItems.map(({ to, label, featured }) => (
+        <Link
+            key={to}
+            to={to}
+            onClick={() => setMenuOpen(false)}
+            className={featured
+                ? `${mobile ? "w-full " : ""}shrink-0 rounded calendar-button px-3 py-2 text-sm bg-linear-to-br from-[#1E90FF] to-[#99BADD] font-black text-white shadow-sm transition-all duration-200 hover:brightness-110`
+                : `${mobile ? "w-full " : ""}shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white`
+            }
+        >
+            {label}
+        </Link>
+    ));
 
     useEffect(() => {
         let mounted = true;
@@ -160,7 +185,7 @@ const Navbar = () => {
     return (
         <nav className="w-full py-3 text-white sm:py-4">
             <div className="mx-auto max-w-[1600px] px-4">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-between sm:gap-5">
+                <div className="flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center">
                         <Link to="/" className="flex shrink-0 items-center gap-2">
                             <img src={logo} alt="" className="h-9 w-9 invert object-contain sm:h-10 sm:w-10" />
@@ -169,75 +194,10 @@ const Navbar = () => {
                             </span>
                         </Link>
                     </div>
-                    <div className="order-3 -mx-1 flex w-full items-center gap-1 overflow-x-auto sm:order-none sm:mx-0 sm:w-auto sm:gap-2">
-                        <Link
-                            to="/"
-                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
-                        >
-                            Start
-                        </Link>
-
-                        <Link
-                            to="/ranking"
-                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
-                        >
-                            Ranking
-                        </Link>
-
-                        <Link
-                            to="/players"
-                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
-                        >
-                            Gracze
-                        </Link>
-
-                        <Link
-                            to="/contact"
-                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
-                        >
-                            Kontakt
-                        </Link>
-                        <Link
-                            to="/partners"
-                            className="shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
-                        >
-                            Partnerzy
-                        </Link>
-                        <Link
-                            to="/calendar"
-                            className="shrink-0 rounded calendar-button px-3 py-2 text-sm bg-linear-to-br from-[#1E90FF] to-[#99BADD] font-black text-white shadow-sm transition-all duration-200 hover:brightness-110"
-                        >
-                            Kalendarz adwentowy
-                        </Link>
-
+                    <div className="hidden items-center gap-1 xl:flex">
+                        {renderNavLinks()}
                     </div>
-
-                    {/* {user && (
-                        <div className="flex items-center gap-2 min-w-0">
-                            {avatarUrl ? (
-                                <img
-                                    src={avatarUrl}
-                                    alt={`${displayName} avatar`}
-                                    className="w-8 h-8 rounded-full object-cover"
-                                    onError={(event) => {
-                                        event.currentTarget.style.display =
-                                            "none";
-                                    }}
-                                />
-                            ) : (
-                                <div className="w-8 h-8 rounded-full bg-bg-light flex items-center justify-center text-xs">
-                                    {displayName
-                                        .charAt(0)
-                                        .toUpperCase()}
-                                </div>
-                            )}
-
-                            <span className="max-w-32 truncate">
-                                {displayName}
-                            </span>
-                        </div>
-                    )} */}
-                    <div className="ml-auto flex flex-wrap items-center justify-center gap-2 sm:justify-end sm:gap-4">
+                    <div className="ml-auto hidden items-center justify-end gap-4 xl:flex">
                         {profile?.role === "admin" && (
                             <div>
                                 <div className="rounded-full bg-green-600"></div>
@@ -263,7 +223,50 @@ const Navbar = () => {
                                     : "Zaloguj się"}
                         </button>
                     </div>
+                    <button
+                        type="button"
+                        aria-label={menuOpen ? "Zamknij menu" : "Otwórz menu"}
+                        aria-expanded={menuOpen}
+                        aria-controls="mobile-navigation"
+                        onClick={() => setMenuOpen((open) => !open)}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-white/10 transition-colors hover:bg-white/5 xl:hidden"
+                    >
+                        <img src={menuIcon} alt="" aria-hidden="true" className="h-5 w-5 invert" />
+                    </button>
                 </div>
+                {menuOpen && (
+                    <div id="mobile-navigation" className="mt-3 grid gap-1 border-t border-white/10 pt-3 xl:hidden">
+                        <div className="grid gap-1">
+                            {renderNavLinks(true)}
+                        </div>
+                        <div className="mt-2 flex flex-col gap-2 border-t border-white/10 pt-3">
+                            {profile?.role === "admin" && (
+                                    <Link
+                                        to="/admin-panel"
+                                        onClick={() => setMenuOpen(false)}
+                                        className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-center text-sm font-bold text-white transition-colors hover:bg-white/10"
+                                    >
+                                        Panel Admina
+                                    </Link>
+                            )}
+                            <button
+                                    type="button"
+                                    className="rounded-md bg-red-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                    onClick={() => {
+                                        setMenuOpen(false);
+                                        void (user ? logout() : login());
+                                    }}
+                                    disabled={!authReady}
+                            >
+                                    {!authReady
+                                        ? "Sprawdzanie..."
+                                        : user
+                                            ? "Wyloguj się"
+                                            : "Zaloguj się"}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </nav>
     );

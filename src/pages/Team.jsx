@@ -190,7 +190,7 @@ const Team = () => {
 
     if (error || !team) {
         return (
-            <p role="status" className="my-6 border border-white/10 bg-bg p-4 text-sm text-red-300">
+            <p role="status" className="my-6 border border-white/10 p-4 text-sm text-red-300">
                 {error || "Nie znaleziono drużyny."}
             </p>
         );
@@ -203,8 +203,8 @@ const Team = () => {
             </header>
 
             <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-                <section className="min-w-0 bg-bg">
-                    <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                <section className="min-w-0">
+                    <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                         Profil
                     </h2>
                     <div className="flex flex-col items-center px-4 py-7">
@@ -222,8 +222,8 @@ const Team = () => {
                     </div>
                 </section>
 
-                <section className="min-w-0 bg-bg">
-                    <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                <section className="min-w-0">
+                    <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                         Skład drużyny
                     </h2>
                     {roster.length ? (
@@ -250,7 +250,7 @@ const Team = () => {
                     )}
                 </section>
 
-                <section className="min-w-0 overflow-hidden bg-bg lg:col-span-2">
+                <section className="min-w-0 overflow-hidden lg:col-span-2">
                     <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-3">
                         <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400">
                             <span className="flex h-7 w-7 items-center justify-center p-1">
@@ -273,7 +273,7 @@ const Team = () => {
                     {faceitTeam?.payload?.season_standing ? (
                         <>
                             <div className="grid grid-cols-3 gap-2 p-3 sm:gap-4 sm:p-5">
-                                <div className="flex min-w-0 flex-col items-center justify-center bg-bg-dark/40 px-2 py-4 sm:py-5">
+                                <div className="flex min-w-0 flex-col items-center justify-center px-2 py-4 sm:py-5">
                                     <span className="text-3xl font-bold tabular-nums text-success sm:text-4xl">
                                         {faceitTeam.payload.season_standing.wins ?? "—"}
                                     </span>
@@ -281,7 +281,7 @@ const Team = () => {
                                         Wygrane
                                     </span>
                                 </div>
-                                <div className="flex min-w-0 flex-col items-center justify-center bg-bg-dark/40 px-2 py-4 text-center sm:py-5">
+                                <div className="flex min-w-0 flex-col items-center justify-center px-2 py-4 text-center sm:py-5">
                                     <span className="text-3xl font-bold tabular-nums text-white sm:text-4xl">
                                         {faceitTeam.payload.season_standing.placement?.left
                                             ? `#${faceitTeam.payload.season_standing.placement.left}`
@@ -294,7 +294,7 @@ const Team = () => {
                                         ].filter(Boolean).join(" ") || "Pozycja"}
                                     </span>
                                 </div>
-                                <div className="flex min-w-0 flex-col items-center justify-center bg-bg-dark/40 px-2 py-4 sm:py-5">
+                                <div className="flex min-w-0 flex-col items-center justify-center px-2 py-4 sm:py-5">
                                     <span className="text-3xl font-bold tabular-nums text-danger sm:text-4xl">
                                         {faceitTeam.payload.season_standing.losses ?? "—"}
                                     </span>
@@ -318,8 +318,8 @@ const Team = () => {
                         </p>
                     )}
                 </section>
-                <section className="min-w-0 bg-bg lg:col-span-2">
-                    <h2 className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                <section className="min-w-0 lg:col-span-2">
+                    <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                         Mecze
                     </h2>
                     {matchesError ? (

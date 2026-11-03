@@ -79,11 +79,11 @@ const Transfers = () => {
     const pageTransfers = transfers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
     return (
-        <section className="my-6 overflow-hidden bg-bg">
-            <header className="flex items-center gap-3 bg-[#202329] px-4 py-4 sm:px-6">
+        <section className="min-w-0">
+            <header className="mb-5 flex items-center gap-3">
                 <img src={squadIcon} alt="" aria-hidden="true" className="h-5 w-5 invert opacity-70" />
                 <div>
-                    <h1 className="mt-1 text-xl font-bold text-white sm:text-2xl">
+                    <h1 className="text-2xl font-bold text-white sm:text-3xl">
                         Historia transferów
                     </h1>
                 </div>

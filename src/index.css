@@ -40,10 +40,10 @@
     content: "";
     position: fixed;
     inset: 0;
-    background-image: url("./assets/pattern.png");
-    background-repeat: repeat;
-    opacity: 0.4;
-    /* Adjust opacity here */
+    background-image: url("./assets/mountains.png");
+    background-size: cover;
+    opacity: 0.15;
+    filter: grayscale(100%) blur(5px);
     pointer-events: none;
     z-index: -1;
   }
@@ -87,6 +87,78 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
+}
+
+.article-editor-content {
+  min-height: 24rem;
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  background: #121317;
+  color: var(--color-text);
+  outline: none;
+}
+
+.article-editor-content:focus {
+  border-color: #8f2b33;
+  outline: 2px solid rgb(180 35 45 / 20%);
+  outline-offset: 1px;
+}
+
+.article-editor-content > * + *,
+.article-body > * + * {
+  margin-top: 1rem;
+}
+
+.article-editor-content h2,
+.article-body h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: white;
+}
+
+.article-editor-content h3,
+.article-body h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: white;
+}
+
+.article-editor-content ul,
+.article-editor-content ol,
+.article-body ul,
+.article-body ol {
+  padding-left: 1.5rem;
+}
+
+.article-editor-content ul,
+.article-body ul {
+  list-style: disc;
+}
+
+.article-editor-content ol,
+.article-body ol {
+  list-style: decimal;
+}
+
+.article-editor-content blockquote,
+.article-body blockquote {
+  border-left: 3px solid var(--color-primary);
+  padding-left: 1rem;
+  color: #a1a1aa;
+}
+
+.article-editor-content a,
+.article-body a {
+  color: #fca5a5;
+  text-decoration: underline;
+}
+
+.article-editor-content img,
+.article-body img {
+  max-width: 100%;
+  height: auto;
 }
 
 .snowy-bg {

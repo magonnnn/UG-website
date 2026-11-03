@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import refrag from "../assets/refrag-baner.png";
 
 const Home = () => {
     const [articles, setArticles] = useState([]);
@@ -34,12 +33,10 @@ const Home = () => {
 
     return (
         <section className="min-w-0">
-            <img
-                src={refrag}
-                alt="refrag partner baner"
-                className="mb-4 aspect-[7/1] w-full object-cover"
-            />
             <section aria-labelledby="articles-heading">
+                <h1 id="articles-heading" className="mb-5 text-2xl font-bold text-white sm:text-3xl">
+                    Najnowsze artykuły
+                </h1>
                 {loading ? (
                     <p className="text-sm text-gray-400">Ładowanie artykułów...</p>
                 ) : error ? (
@@ -52,7 +49,7 @@ const Home = () => {
                             <Link
                                 to={`/article/${article.id}`}
                                 key={article.id}
-                                className="group min-w-0 overflow-hidden border border-white/10 bg-bg transition-colors hover:border-white/20"
+                                className="group min-w-0 overflow-hidden border border-white/10 transition-colors hover:border-white/20"
                             >
                                 <img
                                     src={getCoverUrl(article.cover_image)}
