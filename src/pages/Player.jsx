@@ -13,6 +13,9 @@ const Player = () => {
     const [transfer, setTransfer] = useState({});
     const [teams, setTeams] = useState([]);
     const [faceitPlayer, setFaceitPlayer] = useState({});
+    const [recentStats, setRecentStats] = useState(null);
+    const [recentStatsLoading, setRecentStatsLoading] = useState(false);
+    const [recentStatsError, setRecentStatsError] = useState("");
 
     useEffect(() => {
         let active = true;
@@ -63,48 +66,37 @@ const Player = () => {
 
     useEffect(() => {
         let active = true;
-        const API_KEY = "34bdb1e3-f715-48b3-a7e2-12f432e11b59";
-        const BASE = "https://open.faceit.com/data/v4";
-        const GAME = "cs2";
         const steamid64 = player.steamid64;
 
-        if (!steamid64) return;
-
-        async function api(path, params = {}) {
-            const url = new URL(BASE + path);
-
-            Object.entries(params).forEach(([key, value]) => {
-                url.searchParams.set(key, value);
-            });
-
-            const response = await fetch(url, {
-                headers: {
-                    Authorization: `Bearer ${API_KEY}`,
-                    Accept: "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`FACEIT API error: ${response.status}`);
-            }
-
-            return response.json();
-        }
-
         async function fetchFaceitPlayer() {
+            setFaceitPlayer({});
+            setRecentStats(null);
+            setRecentStatsError("");
+            setRecentStatsLoading(Boolean(steamid64));
+            if (!steamid64) return;
+
             try {
-                const faceitPlr = await api("/players", {
-                    game_player_id: steamid64,
-                    game: GAME,
+                const { data, error } = await supabase.functions.invoke("faceit-player-stats", {
+                    body: { steamid64 },
                 });
 
+                if (error) {
+                    throw error;
+                }
+
                 if (active) {
-                    setFaceitPlayer({ steamid64, profile: faceitPlr });
-                    console.log(faceitPlr)
+                    setFaceitPlayer({ steamid64, profile: data.profile });
+                    setRecentStats(data.recentStats);
+                    setRecentStatsError("");
                 }
             } catch (error) {
                 if (active) {
-                    console.error("FACEIT API error:", error.message);
+                    console.error("FACEIT player stats error:", error);
+                    setRecentStatsError("Nie udało się pobrać statystyk FACEIT.");
+                }
+            } finally {
+                if (active) {
+                    setRecentStatsLoading(false);
                 }
             }
         }
@@ -242,7 +234,7 @@ const Player = () => {
                                 </dd>
                             </div>
                         )}
-                        {faceitPlayer && (
+                        {faceitPlayer.profile && (
                             <div className="flex items-center justify-between gap-4 py-3">
                                 <dt className="text-sm text-gray-500">
                                     ELO
@@ -268,7 +260,35 @@ const Player = () => {
                         <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                             Statystyki
                         </h2>
-                        <p className="px-4 py-5 text-sm text-gray-500">Brak dostępnych statystyk gracza.</p>
+                        {recentStatsLoading ? (
+                            <p className="px-4 py-5 text-sm text-gray-500">Pobieranie statystyk...</p>
+                        ) : recentStatsError ? (
+                            <p role="status" className="px-4 py-5 text-sm text-red-300">{recentStatsError}</p>
+                        ) : recentStats?.matches > 0 ? (
+                            <>
+                                <dl className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
+                                    {[
+                                        ["Zabójstwa / mecz", recentStats.averageKills.toFixed(1)],
+                                        ["Śmierci / mecz", recentStats.averageDeaths.toFixed(1)],
+                                        ["Asysty / mecz", recentStats.averageAssists.toFixed(1)],
+                                        ["K/D", recentStats.killDeathRatio.toFixed(2)],
+                                        ["HS", `${recentStats.headshotPercentage.toFixed(1)}%`],
+                                        ["Wygrane", `${recentStats.winPercentage.toFixed(1)}%`],
+                                    ].map(([label, value]) => (
+                                        <div key={label} className="bg-white/[0.03] px-3 py-3">
+                                            <dt className="text-xs text-gray-500">{label}</dt>
+                                            <dd className="mt-1 text-lg font-semibold text-white">{value}</dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </>
+                        ) : (
+                            <p className="px-4 py-5 text-sm text-gray-500">
+                                {recentStats?.failedMatches > 0
+                                    ? "Nie udało się pobrać statystyk z ostatnich meczów."
+                                    : "Brak dostępnych statystyk z ostatnich meczów."}
+                            </p>
+                        )}
                     </section>
 
                     <section className="min-w-0">

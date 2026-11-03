@@ -31,3 +31,9 @@ entrypoint = "./functions/faceit-team-league/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/faceit-team-league/*.html" ]
+
+[functions.faceit-player-stats]
+enabled = true
+verify_jwt = false
+import_map = "./functions/faceit-player-stats/deno.json"
+entrypoint = "./functions/faceit-player-stats/index.ts"
