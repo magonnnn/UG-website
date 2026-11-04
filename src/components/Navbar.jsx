@@ -72,7 +72,6 @@ const Navbar = () => {
         { to: "/matches", label: "Mecze" },
         { to: "/contact", label: "Kontakt" },
         { to: "/partners", label: "Partnerzy" },
-        { to: "/calendar", label: "Kalendarz adwentowy", featured: true },
     ];
 
     const renderNavLinks = (mobile = false) => navItems.map(({ to, label, featured }) => (

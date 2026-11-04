@@ -27,7 +27,7 @@ const Pagination = ({ currentPage, pageCount, onPageChange, itemCount }) => {
                     type="button"
                     onClick={() => onPageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="rounded border border-white/10 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded border border-white/10 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40 hover:cursor-pointer"
                 >
                     Poprzednia
                 </button>
@@ -35,7 +35,7 @@ const Pagination = ({ currentPage, pageCount, onPageChange, itemCount }) => {
                     type="button"
                     onClick={() => onPageChange(currentPage + 1)}
                     disabled={currentPage === pageCount}
-                    className="rounded border border-white/10 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded border border-white/10 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40 hover:cursor-pointer"
                 >
                     Następna
                 </button>
