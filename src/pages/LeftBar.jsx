@@ -202,7 +202,9 @@ const LeftBar = () => {
             <section className="overflow-hidden border border-border bg-bg">
                 <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                     <img src={partner} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
-                    Partnerzy
+                    <Link to="/partners" className="text-gray-400 transition-colors hover:text-white">
+                        Partnerzy
+                    </Link>
                 </h2>
                 <div className="px-3 py-3">
                     {reducedPartners.map((partnerInfo) => (

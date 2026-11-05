@@ -122,7 +122,9 @@ const RightBar = () => {
             <section className="overflow-hidden border border-border bg-bg">
                 <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                     <img src={matchIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
-                    Dzisiejsze mecze
+                    <Link to="/matches" className="text-gray-400 transition-colors hover:text-white">
+                        Najbliższe mecze
+                    </Link>
                 </h2>
                 {matchesLoading ? (
                     <p className="px-4 py-4 text-sm text-gray-400">Ładowanie meczów...</p>
