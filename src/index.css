@@ -104,8 +104,8 @@
   outline-offset: 1px;
 }
 
-.article-editor-content > * + *,
-.article-body > * + * {
+.article-editor-content>*+*,
+.article-body>*+* {
   margin-top: 1rem;
 }
 

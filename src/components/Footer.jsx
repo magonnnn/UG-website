@@ -24,8 +24,9 @@ const Footer = () => {
                 </div>
                 <div className="flex flex-col items-start gap-2 text-left">
                     <h3 className="mb-1 font-bold text-lg">DOKUMENTY</h3>
-                    <a href="" className="text-gray-400 transition-colors hover:text-white">Dane osobowe</a>
-                    <a href="" className="text-gray-400 transition-colors hover:text-white">Klauzula RODO</a>
+                    <Link to="/privacy-policy" className="text-gray-400 transition-colors hover:text-white">
+                        Polityka prywatności
+                    </Link>
                 </div>
                 <div className="flex flex-col items-start gap-2 text-left">
                     <h3 className="mb-1 font-bold text-lg">SOCIAL MEDIA</h3>

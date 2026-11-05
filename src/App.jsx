@@ -15,8 +15,8 @@ import Match from './pages/Match';
 import Article from "./pages/Article";
 import Partners from "./pages/Partners";
 import Transfers from "./pages/Transfers";
-import Calendar from "./pages/Calendar";
 import Matches from "./pages/Matches";
+import PrivacyPolicy from "./pages/DataInfo";
 
 const App = () => {
   return (
@@ -25,7 +25,7 @@ const App = () => {
         <Header />
 
         <div className="mx-auto grid w-full max-w-[1600px] min-w-0 flex-1 grid-cols-1 content-start lg:grid-cols-[minmax(210px,250px)_minmax(0,1fr)_minmax(220px,280px)]">
-          <div className="order-2 min-w-0 lg:order-1 lg:border-r lg:border-border">
+          <div className="order-2 min-w-0 lg:order-1">
             <div>
               <LeftBar />
             </div>
@@ -48,14 +48,14 @@ const App = () => {
                   </AdminRoute>
                 }
               />
-              <Route path="/calendar" element={<Calendar />} />
               <Route path="/player" element={<Player />} />
               <Route path="/players" element={<Players />} />
               <Route path="/matches" element={<Matches />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             </Routes>
           </main>
 
-          <div className="order-3 min-w-0 lg:border-l lg:border-border">
+          <div className="order-3 min-w-0">
             <div>
               <RightBar />
             </div>
