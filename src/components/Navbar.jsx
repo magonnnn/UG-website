@@ -72,6 +72,7 @@ const Navbar = () => {
         { to: "/matches", label: "Mecze" },
         { to: "/contact", label: "Kontakt" },
         { to: "/partners", label: "Partnerzy" },
+        { to: "/tournaments", label: "Turnieje" }
     ];
 
     const renderNavLinks = (mobile = false) => navItems.map(({ to, label, featured }) => (
@@ -81,7 +82,7 @@ const Navbar = () => {
             onClick={() => setMenuOpen(false)}
             className={featured
                 ? `${mobile ? "w-full " : ""}shrink-0 rounded calendar-button px-3 py-2 text-sm bg-linear-to-br from-[#1E90FF] to-[#99BADD] font-black text-white shadow-sm transition-all duration-200 hover:brightness-110`
-                : `${mobile ? "w-full " : ""}shrink-0 rounded px-3 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white`
+                : `${mobile ? "w-full " : ""}shrink-0 rounded px-5 py-2 text-md font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white`
             }
         >
             {label}
@@ -240,28 +241,28 @@ const Navbar = () => {
                         </div>
                         <div className="mt-2 flex flex-col gap-2 border-t border-white/10 pt-3">
                             {profile?.role === "admin" && (
-                                    <Link
-                                        to="/admin-panel"
-                                        onClick={() => setMenuOpen(false)}
-                                        className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-center text-sm font-bold text-white transition-colors hover:bg-white/10"
-                                    >
-                                        Panel Admina
-                                    </Link>
+                                <Link
+                                    to="/admin-panel"
+                                    onClick={() => setMenuOpen(false)}
+                                    className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-center text-sm font-bold text-white transition-colors hover:bg-white/10"
+                                >
+                                    Panel Admina
+                                </Link>
                             )}
                             <button
-                                    type="button"
-                                    className="rounded-md bg-red-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                                    onClick={() => {
-                                        setMenuOpen(false);
-                                        void (user ? logout() : login());
-                                    }}
-                                    disabled={!authReady}
+                                type="button"
+                                className="rounded-md bg-red-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                onClick={() => {
+                                    setMenuOpen(false);
+                                    void (user ? logout() : login());
+                                }}
+                                disabled={!authReady}
                             >
-                                    {!authReady
-                                        ? "Sprawdzanie..."
-                                        : user
-                                            ? "Wyloguj się"
-                                            : "Zaloguj się"}
+                                {!authReady
+                                    ? "Sprawdzanie..."
+                                    : user
+                                        ? "Wyloguj się"
+                                        : "Zaloguj się"}
                             </button>
                         </div>
                     </div>

@@ -160,6 +160,11 @@ const AdminPanel = () => {
     const [updatedPlayerSteam, setUpdatedPlayerSteam] = useSessionState("admin-updated-player-steam", "");
     const [updatedPlayerTeam, setUpdatedPlayerTeam] = useSessionState("admin-updated-player-team", "");
     const [editRoster, setEditRoster] = useSessionState("admin-edit-roster", []);
+    const [newTournament, setNewTournament] = useSessionState("admin-new-tournament-name", "");
+    const [amountOfTeams, setAmountOfTeams] = useSessionState("admin-new-tournament-amount", "");
+    const [registeredTeams, setRegisteredTeams] = useSessionState("admin-new-tournament-reg", "");
+    const [newTournamentDesc, setNewTournamentDesc] = useSessionState("admin-new-tournament-desc", "");
+    const [newTournamentDate, setNewTournamentDate] = useSessionState("admin-new-tournament-date", "");
 
 
     const [, setRosterInputs] = useSessionState(
@@ -738,6 +743,45 @@ const AdminPanel = () => {
 
         setLoading(false);
     };
+
+    const addTournament = async (event) => {
+
+        event.preventDefault();
+
+        const name = newTournament.trim()
+        const amountOfTeams2 = amountOfTeams.trim()
+        const registeredTeams2 = registeredTeams.trim()
+        const description = newTournamentDesc.trim()
+        const tournamentDate = newTournamentDate
+
+        if (!name || !description || !amountOfTeams2 || !registeredTeams2 || !tournamentDate) {
+            showMessage("Wypełnij wszystkie pola.", "error");
+            return;
+        }
+
+        setLoading(true)
+        clearMessage()
+
+        const { data, error } = await supabase
+            .from("tournaments")
+            .insert({ name: name, amount_of_teams: Number(amountOfTeams2), registered_teams: Number(registeredTeams2), starts: newTournamentDate, description: description })
+
+        if (error) {
+            console.error("Error inserting tournament:", error.message);
+            showMessage(`Błąd dodawania turnieju: ${error.message}`, "error");
+            setLoading(false);
+            return;
+        }
+
+        setNewTournament("")
+        setAmountOfTeams("")
+        setRegisteredTeams("")
+        setNewTournamentDesc("")
+        setNewTournamentDate("")
+        showMessage("Turniej dodany")
+
+        setLoading(false)
+    }
 
     const selectPlayer = (event) => {
         const id = event.target.value;
@@ -1913,8 +1957,177 @@ const AdminPanel = () => {
                                 )}
                             </div>
                         </form>
+
                     </div>
                 </section>
+                <form onSubmit={addTournament} className="mb-4 min-w-0 border border-white/10">
+                    <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
+                        Dodanie turnieju
+                    </h2>
+                    <div className="p-4">
+                        <label htmlFor="new-tournament-name" className="mb-2 flex gap-2 items-center block text-white">
+                            <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                            Nazwa
+                        </label>
+                        <input
+                            id="new-tournament-name"
+                            type="text"
+                            name="tournamentName"
+                            placeholder="Nazwa turnieju..."
+                            value={newTournament}
+                            onChange={(event) => setNewTournament(event.target.value)}
+                            className="w-full min-w-0 border p-2.5 text-white"
+                            required
+                        />
+                        <label htmlFor="new-tournament-desc" className="mb-2 mt-4 flex gap-2 items-center block text-white">
+                            <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                            Opis
+                        </label>
+                        <textarea
+                            name="tournamentDesc"
+                            id="new-tournament-desc"
+                            placeholder="Opis turnieju..."
+                            value={newTournamentDesc}
+                            onChange={(event) => setNewTournamentDesc(event.target.value)}
+                            className="w-full min-w-0 border p-2.5 text-white"
+                            required
+                        ></textarea>
+                        <h2 className="text-white mb-2">
+                            Ilość drużyn
+                        </h2>
+                        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <input
+                                type="number"
+                                required
+                                min="0"
+                                name="regTeams"
+                                placeholder="Zapisanych"
+                                value={registeredTeams}
+                                onChange={(event) => setRegisteredTeams(event.target.value)}
+                                className="mb-4 w-full min-w-0 border p-2.5 text-center"
+                            />
+                            <input
+                                type="number"
+                                required
+                                min="0"
+                                name="increasePoints"
+                                placeholder="Maksymalnie"
+                                value={amountOfTeams}
+                                onChange={(event) => setAmountOfTeams(event.target.value)}
+                                className="mb-4 w-full min-w-0 border p-2.5 text-center"
+                            />
+                        </div>
+                        <div className="min-w-0">
+                            <label htmlFor="new-tournament-date" className="mb-2 flex gap-2 items-center block text-white">
+                                <img src={clockIcon} alt="" aria-hidden="true" className="h-3.5 w-3.5 invert opacity-60" />
+                                Rozpoczęcie
+                            </label>
+                            <input
+                                id="new-tournament-date"
+                                type="datetime-local"
+                                value={newTournamentDate}
+                                onChange={(event) => setNewTournamentDate(event.target.value)}
+                                className="w-full border p-2.5 text-sm"
+                                required
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="mt-4 w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <span className="inline-flex items-center gap-2">
+                                <img src={addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                {loading ? "Przetwarzanie..." : "Dodaj turniej"}
+                            </span>
+                        </button>
+                    </div>
+                </form>
+                <form onSubmit={addTournament} className="mb-4 min-w-0 border border-white/10">
+                    <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
+                        Edycja turnieju (niezrobione)
+                    </h2>
+                    <div className="p-4">
+                        <label htmlFor="new-tournament-name" className="mb-2 flex gap-2 items-center block text-white">
+                            <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                            Nazwa
+                        </label>
+                        <input
+                            id="new-tournament-name"
+                            type="text"
+                            name="tournamentName"
+                            placeholder="Nazwa turnieju..."
+                            value={newTournament}
+                            onChange={(event) => setNewTournament(event.target.value)}
+                            className="w-full min-w-0 border p-2.5 text-white"
+                            required
+                        />
+                        <label htmlFor="new-tournament-desc" className="mb-2 mt-4 flex gap-2 items-center block text-white">
+                            <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
+                            Opis
+                        </label>
+                        <textarea
+                            name="tournamentDesc"
+                            id="new-tournament-desc"
+                            placeholder="Opis turnieju..."
+                            value={newTournamentDesc}
+                            onChange={(event) => setNewTournamentDesc(event.target.value)}
+                            className="w-full min-w-0 border p-2.5 text-white"
+                            required
+                        ></textarea>
+                        <h2 className="text-white mb-2">
+                            Ilość drużyn
+                        </h2>
+                        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <input
+                                type="number"
+                                required
+                                min="0"
+                                name="regTeams"
+                                placeholder="Zapisanych"
+                                value={registeredTeams}
+                                onChange={(event) => setRegisteredTeams(event.target.value)}
+                                className="mb-4 w-full min-w-0 border p-2.5 text-center"
+                            />
+                            <input
+                                type="number"
+                                required
+                                min="0"
+                                name="increasePoints"
+                                placeholder="Maksymalnie"
+                                value={amountOfTeams}
+                                onChange={(event) => setAmountOfTeams(event.target.value)}
+                                className="mb-4 w-full min-w-0 border p-2.5 text-center"
+                            />
+                        </div>
+                        <div className="min-w-0">
+                            <label htmlFor="new-tournament-date" className="mb-2 flex gap-2 items-center block text-white">
+                                <img src={clockIcon} alt="" aria-hidden="true" className="h-3.5 w-3.5 invert opacity-60" />
+                                Rozpoczęcie
+                            </label>
+                            <input
+                                id="new-tournament-date"
+                                type="datetime-local"
+                                value={newTournamentDate}
+                                onChange={(event) => setNewTournamentDate(event.target.value)}
+                                className="w-full border p-2.5 text-sm"
+                                required
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="mt-4 w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <span className="inline-flex items-center gap-2">
+                                <img src={addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                {loading ? "Przetwarzanie..." : "Dodaj turniej"}
+                            </span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </section>
     );

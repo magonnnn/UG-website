@@ -17,6 +17,7 @@ import Partners from "./pages/Partners";
 import Transfers from "./pages/Transfers";
 import Matches from "./pages/Matches";
 import PrivacyPolicy from "./pages/DataInfo";
+import Tournaments from "./pages/Tournaments";
 
 const App = () => {
   return (
@@ -52,6 +53,7 @@ const App = () => {
               <Route path="/players" element={<Players />} />
               <Route path="/matches" element={<Matches />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/tournaments" element={<Tournaments />} />
             </Routes>
           </main>
 
