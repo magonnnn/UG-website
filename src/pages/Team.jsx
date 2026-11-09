@@ -4,12 +4,52 @@ import { supabase } from "../lib/supabaseClient";
 import eseaIcon from "../assets/esea.png";
 import redirectIcon from "../assets/redirect.svg";
 
+const teamMatchSelect = `
+    id,
+    time,
+    team_1_score,
+    team_2_score,
+    finished,
+    team_2_name,
+    faceit_match_id,
+    league:tournaments!matches_league_fkey(name),
+    team_1:teams!matches_team_1_id_fkey(name, logo),
+    team_2:teams!matches_team_2_id_fkey(name, logo)
+`;
+
+const loadTeamMatches = async (teamId) => {
+    const [firstTeamMatches, secondTeamMatches] = await Promise.all([
+        supabase
+            .from("matches")
+            .select(teamMatchSelect)
+            .eq("team_1_id", teamId),
+        supabase
+            .from("matches")
+            .select(teamMatchSelect)
+            .eq("team_2_id", teamId),
+    ]);
+
+    const error = firstTeamMatches.error ?? secondTeamMatches.error;
+    if (error) return { error };
+
+    const uniqueMatches = new Map(
+        [...(firstTeamMatches.data ?? []), ...(secondTeamMatches.data ?? [])]
+            .map((match) => [match.id, match])
+    );
+
+    return {
+        data: [...uniqueMatches.values()].sort(
+            (first, second) => new Date(second.time ?? 0) - new Date(first.time ?? 0)
+        ),
+    };
+};
+
 const Team = () => {
     const location = useLocation();
     const teamId = location.state?.id;
 
     const [teams, setTeams] = useState([]);
-    const [faceitTeam, setFaceitTeam] = useState({});
+    const [faceitTeam, setFaceitTeam] = useState(null);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [matches, setMatches] = useState([]);
@@ -26,7 +66,7 @@ const Team = () => {
             }
 
             setLoading(true);
-            const [teamResult, firstTeamMatches, secondTeamMatches] = await Promise.all([
+            const [teamResult, matchesResult] = await Promise.all([
                 supabase.from("teams").select(`
                     id, 
                     name,
@@ -40,26 +80,7 @@ const Team = () => {
                     player5,
                     faceit_id
                 `).eq("id", teamId),
-                supabase
-                    .from("matches")
-                    .select(`
-                        id,
-                        time,
-                        league:tournaments!matches_league_fkey(name),
-                        team_1:teams!matches_team_1_id_fkey(name, logo),
-                        team_2:teams!matches_team_2_id_fkey(name, logo)
-                    `)
-                    .eq("team_1_id", teamId),
-                supabase
-                    .from("matches")
-                    .select(`
-                        id,
-                        time,
-                        league:tournaments!matches_league_fkey(name),
-                        team_1:teams!matches_team_1_id_fkey(name, logo),
-                        team_2:teams!matches_team_2_id_fkey(name, logo)
-                    `)
-                    .eq("team_2_id", teamId),
+                loadTeamMatches(teamId),
             ]);
 
             if (!active) return;
@@ -72,20 +93,11 @@ const Team = () => {
                 setError("");
             }
 
-            if (firstTeamMatches.error || secondTeamMatches.error) {
-                const matchQueryError = firstTeamMatches.error ?? secondTeamMatches.error;
-                console.error("Error loading team matches:", matchQueryError.message);
+            if (matchesResult.error) {
+                console.error("Error loading team matches:", matchesResult.error.message);
                 setMatchesError("Nie udało się załadować meczów drużyny.");
             } else {
-                const uniqueMatches = new Map(
-                    [...(firstTeamMatches.data ?? []), ...(secondTeamMatches.data ?? [])]
-                        .map((match) => [match.id, match])
-                );
-                setMatches(
-                    [...uniqueMatches.values()].sort(
-                        (first, second) => new Date(second.time ?? 0) - new Date(first.time ?? 0)
-                    )
-                );
+                setMatches(matchesResult.data ?? []);
                 setMatchesError("");
             }
 
@@ -104,29 +116,58 @@ const Team = () => {
 
     useEffect(() => {
         if (!faceitId) {
-            setFaceitTeam({});
             return;
         }
 
         let active = true;
 
         async function getTeamInfo() {
-            const url = `https://www.faceit.com/api/team-leagues/v1/teams/${encodeURIComponent(faceitId)}/profile/leagues/current`;
+            const refreshMatches = async () => {
+                const matchesResult = await loadTeamMatches(teamId);
+                if (!active) return;
+
+                if (matchesResult.error) {
+                    console.error("Error refreshing team matches:", matchesResult.error.message);
+                    setMatchesError("Nie udało się załadować meczów drużyny.");
+                } else {
+                    setMatches(matchesResult.data ?? []);
+                    setMatchesError("");
+                }
+            };
+
+            void supabase.functions.invoke("faceit-team-league", {
+                body: {
+                    action: "sync-fixtures",
+                    faceitId,
+                    teamId: String(teamId),
+                },
+            }).then(async ({ data, error }) => {
+                if (error) {
+                    console.error("ESEA fixture sync failed:", error);
+                    return;
+                }
+
+                if (data?.error) {
+                    console.error("ESEA fixture sync failed:", data.error);
+                    return;
+                }
+
+                await refreshMatches();
+            }).catch((error) => {
+                console.error("ESEA fixture sync failed:", error);
+            });
+
             try {
                 const { data, error } = await supabase.functions.invoke(
                     "faceit-team-league",
                     {
-                        body: { faceitId },
+                        body: { action: "profile", faceitId },
                     }
                 );
-
-                console.log("FACEIT team:", data);
-                console.log("FACEIT team keys:", Object.keys(data ?? {}));
 
                 if (error) {
                     console.error("Edge Function error:", error);
 
-                    // Supabase may include the function's response body here.
                     if (error.context) {
                         try {
                             const details = await error.context.json();
@@ -144,13 +185,11 @@ const Team = () => {
                 }
 
                 if (active) {
-                    setFaceitTeam(data);
-                    console.log("FACEIT league data:", data);
+                    setFaceitTeam({ faceitId, data });
                 }
             } catch (error) {
                 if (active) {
                     console.error("FACEIT request failed:", error);
-                    console.error("Request URL:", url);
                 }
             }
         }
@@ -160,10 +199,13 @@ const Team = () => {
         return () => {
             active = false;
         };
-    }, [faceitId]);
+    }, [faceitId, teamId]);
 
-    const wins = Number(faceitTeam?.payload?.season_standing?.wins);
-    const losses = Number(faceitTeam?.payload?.season_standing?.losses);
+    const currentFaceitTeam = faceitTeam && faceitTeam.faceitId === faceitId
+        ? faceitTeam.data
+        : {};
+    const wins = Number(currentFaceitTeam?.payload?.season_standing?.wins);
+    const losses = Number(currentFaceitTeam?.payload?.season_standing?.losses);
 
     const totalMatches = wins + losses;
 
@@ -270,12 +312,12 @@ const Team = () => {
                             </a>
                         )}
                     </div>
-                    {faceitTeam?.payload?.season_standing ? (
+                    {currentFaceitTeam?.payload?.season_standing ? (
                         <>
                             <div className="grid grid-cols-3 gap-2 p-3 sm:gap-4 sm:p-5">
                                 <div className="flex min-w-0 flex-col items-center justify-center px-2 py-4 sm:py-5">
                                     <span className="text-3xl font-bold tabular-nums text-success sm:text-4xl">
-                                        {faceitTeam.payload.season_standing.wins ?? "—"}
+                                        {currentFaceitTeam.payload.season_standing.wins ?? "—"}
                                     </span>
                                     <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">
                                         Wygrane
@@ -283,20 +325,20 @@ const Team = () => {
                                 </div>
                                 <div className="flex min-w-0 flex-col items-center justify-center px-2 py-4 text-center sm:py-5">
                                     <span className="text-3xl font-bold tabular-nums text-white sm:text-4xl">
-                                        {faceitTeam.payload.season_standing.placement?.left
-                                            ? `#${faceitTeam.payload.season_standing.placement.left}`
+                                        {currentFaceitTeam.payload.season_standing.placement?.left
+                                            ? `#${currentFaceitTeam.payload.season_standing.placement.left}`
                                             : "—"}
                                     </span>
                                     <span className="mt-1 truncate text-[10px] font-semibold uppercase tracking-wider text-gray-400 sm:text-xs">
                                         {[
-                                            faceitTeam.payload.season_standing.division_name,
-                                            faceitTeam.payload.season_standing.conference_name,
+                                            currentFaceitTeam.payload.season_standing.division_name,
+                                            currentFaceitTeam.payload.season_standing.conference_name,
                                         ].filter(Boolean).join(" ") || "Pozycja"}
                                     </span>
                                 </div>
                                 <div className="flex min-w-0 flex-col items-center justify-center px-2 py-4 sm:py-5">
                                     <span className="text-3xl font-bold tabular-nums text-danger sm:text-4xl">
-                                        {faceitTeam.payload.season_standing.losses ?? "—"}
+                                        {currentFaceitTeam.payload.season_standing.losses ?? "—"}
                                     </span>
                                     <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">
                                         Przegrane
@@ -337,12 +379,16 @@ const Team = () => {
                                 >
                                     <div className="min-w-0">
                                         <p className="truncate text-xs font-medium text-gray-500">
-                                            {match.league?.name ?? "Mecz"}
+                                            {match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz")}
                                         </p>
                                         <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
                                             <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
-                                            <span className="shrink-0 text-[10px] font-bold text-red-400">VS</span>
-                                            <span className="min-w-0 truncate">{match.team_2?.name ?? "Drużyna 2"}</span>
+                                            <span className={`shrink-0 text-xs font-bold tabular-nums ${match.finished ? "text-white" : "text-red-400"}`}>
+                                                {match.finished
+                                                    ? `${match.team_1_score ?? "—"} : ${match.team_2_score ?? "—"}`
+                                                    : "VS"}
+                                            </span>
+                                            <span className="min-w-0 truncate">{match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}</span>
                                         </div>
                                     </div>
                                     <time className="shrink-0 text-xs text-gray-500">

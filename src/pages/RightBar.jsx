@@ -44,6 +44,8 @@ const RightBar = () => {
                 .select(`
                     id,
                     time,
+                    team_2_name,
+                    faceit_match_id,
                     league:tournaments!matches_league_fkey(
                         name
                     ),
@@ -58,6 +60,7 @@ const RightBar = () => {
                     `)
                 .gte("time", today.toISOString())
                 .lt("time", tomorrow.toISOString())
+                .or("finished.is.null,finished.eq.false")
                 .order("time", { ascending: true });
 
             if (error) {
@@ -143,7 +146,7 @@ const RightBar = () => {
                             >
                                 <div className="flex items-center justify-between gap-2">
                                     <span className="min-w-0 truncate text-xs font-semibold text-gray-300">
-                                        {match.league?.name ?? "Mecz"}
+                                        {match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz")}
                                     </span>
                                     <time className="shrink-0 text-[11px] text-gray-500">
                                         {match.time
@@ -154,7 +157,7 @@ const RightBar = () => {
                                 <div className="mt-2 flex items-center justify-between gap-2 text-sm text-white">
                                     <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
                                     <img src={matchIcon} alt="" aria-hidden="true" className="h-3 w-3 invert opacity-60" />
-                                    <span className="min-w-0 truncate text-right">{match.team_2?.name ?? "Drużyna 2"}</span>
+                                    <span className="min-w-0 truncate text-right">{match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}</span>
                                 </div>
                             </Link>
                         ))}

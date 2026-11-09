@@ -40,10 +40,10 @@
     content: "";
     position: fixed;
     inset: 0;
-    background-image: url("./assets/mountains.png");
+    background-image: url("./assets/christmas.jpg");
     background-size: cover;
     opacity: 0.15;
-    filter: grayscale(100%) blur(5px);
+    /* filter: grayscale(100%) blur(5px); */
     pointer-events: none;
     z-index: -1;
   }

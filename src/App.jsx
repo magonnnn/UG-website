@@ -1,4 +1,5 @@
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import AdminRoute from "./components/AdminRoute";
@@ -19,9 +20,20 @@ import Matches from "./pages/Matches";
 import PrivacyPolicy from "./pages/DataInfo";
 import Tournaments from "./pages/Tournaments";
 
+const ScrollToTop = () => {
+  const { key } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [key]);
+
+  return null;
+};
+
 const App = () => {
   return (
     <HashRouter>
+      <ScrollToTop />
       <div className="flex min-h-screen w-full flex-col overflow-x-clip text-text">
         <Header />
 

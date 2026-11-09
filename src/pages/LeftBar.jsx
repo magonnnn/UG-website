@@ -19,13 +19,24 @@ const getLogoUrl = (logo) => {
 };
 
 const getTournamentDate = (tournament) => {
-    const dateField = ["start_date", "starts_at", "start_time", "date", "time", "begin_at"]
+    const dateField = ["starts", "start_date", "starts_at", "start_time", "date", "time", "begin_at"]
         .find((field) => tournament[field]);
 
     if (!dateField) return null;
 
     const date = new Date(tournament[dateField]);
     return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getTournamentUrl = (link) => {
+    if (!link) return null;
+
+    try {
+        const url = new URL(link);
+        return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+    } catch {
+        return null;
+    }
 };
 
 const LeftBar = () => {
@@ -185,17 +196,37 @@ const LeftBar = () => {
                     <p className="px-4 py-5 text-sm text-gray-400">Brak nadchodzących turniejów.</p>
                 ) : (
                     <div>
-                        {upcomingTournaments.map(({ tournament, date }) => (
-                            <div key={tournament.id} className="px-3 py-3">
-                                <p className="truncate text-sm font-semibold text-white">
-                                    {tournament.name ?? tournament.title ?? "Turniej"}
-                                </p>
-                                <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
-                                    <img src={clockIcon} alt="" aria-hidden="true" className="h-3 w-3 invert opacity-50" />
-                                    {formatTournamentDate(date)}
-                                </p>
-                            </div>
-                        ))}
+                        {upcomingTournaments.map(({ tournament, date }) => {
+                            const url = getTournamentUrl(tournament.link);
+                            const content = (
+                                <>
+                                    <p className="truncate text-sm font-semibold text-white">
+                                        {tournament.name ?? tournament.title ?? "Turniej"}
+                                    </p>
+                                    <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                                        <img src={clockIcon} alt="" aria-hidden="true" className="h-3 w-3 invert opacity-50" />
+                                        {formatTournamentDate(date)}
+                                    </p>
+                                </>
+                            );
+
+                            return (
+                                <div key={tournament.id}>
+                                    {url ? (
+                                        <a
+                                            href={url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block px-3 py-3 transition-colors hover:bg-white/[0.03]"
+                                        >
+                                            {content}
+                                        </a>
+                                    ) : (
+                                        <div className="px-3 py-3">{content}</div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </section>

@@ -1,5 +1,4 @@
 import admins from "../data/admins";
-import NoiseOverlay from "../components/NoiseOverlay";
 import discordIcon from "../assets/discord.webp";
 
 const Contact = () => {
@@ -10,9 +9,8 @@ const Contact = () => {
                 return (
                     <div
                         key={admin.discord}
-                        className="relative isolate flex w-full flex-row items-center justify-between overflow-hidden border-b border-white/10 p-4 text-white transition-colors hover:bg-white/[0.03] sm:p-6"
+                        className="relative isolate flex w-full flex-row items-center justify-between overflow-hidden p-4 text-white transition-colors hover:bg-white/[0.03] sm:p-6 border border-white/10 transition-colors hover:border-white/20"
                     >
-                        <NoiseOverlay />
 
                         <div className="relative z-10">
                             <h1 className="text-3xl font-bold text-white">
@@ -28,6 +26,7 @@ const Contact = () => {
                             <span>{admin.discord}</span>
                         </div>
                     </div>
+
                 );
             })}
         </section>

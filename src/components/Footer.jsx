@@ -36,6 +36,11 @@ const Footer = () => {
                     <a href="https://discord.gg/5Aa8bCPhg" target="_blank" rel="noopener noreferrer" className="text-gray-400 transition-colors hover:text-white">
                         Discord
                     </a>
+                    <p>
+                        <a href="mailto:underground.community@wp.pl" className="text-gray-400 transition-colors hover:text-white">
+                            underground.community@wp.pl
+                        </a>
+                    </p>
                 </div>
             </div>
             <div className="border-t border-border">

@@ -143,6 +143,9 @@ const AdminPanel = () => {
         team_2_id: "",
         league: "",
         time: "",
+        team_1_score: "",
+        team_2_score: "",
+        finished: false,
     });
     const [logoFile, setLogoFile] = useSessionFileState("admin-team-logo");
     const [reducePoints, setReducePoints] = useSessionState("admin-reduce-points", "");
@@ -165,6 +168,9 @@ const AdminPanel = () => {
     const [registeredTeams, setRegisteredTeams] = useSessionState("admin-new-tournament-reg", "");
     const [newTournamentDesc, setNewTournamentDesc] = useSessionState("admin-new-tournament-desc", "");
     const [newTournamentDate, setNewTournamentDate] = useSessionState("admin-new-tournament-date", "");
+    const [newTournamentLink, setNewTournamentLink] = useSessionState("admin-new-tournament-link", "");
+    const [selectedTournamentId, setSelectedTournamentId] = useSessionState("admin-selected-tournament-id", "");
+    const [tournamentLogoFile, setTournamentLogoFile] = useSessionFileState("admin-tournament-logo");
 
 
     const [, setRosterInputs] = useSessionState(
@@ -267,12 +273,17 @@ const AdminPanel = () => {
                     team_1_id,
                     team_2_id,
                     league,
+                    team_1_score,
+                    team_2_score,
+                    finished,
+                    team_2_name,
                     team_1:teams!matches_team_1_id_fkey(name),
                     team_2:teams!matches_team_2_id_fkey(name),
                     tournament:tournaments!matches_league_fkey(name)
                 `)
+                .is("faceit_match_id", null)
                 .order("time", { ascending: false }),
-            supabase.from("tournaments").select("id, name").order("name"),
+            supabase.from("tournaments").select("*").order("name"),
         ]);
 
         if (matchesResult.error) {
@@ -744,44 +755,217 @@ const AdminPanel = () => {
         setLoading(false);
     };
 
-    const addTournament = async (event) => {
+    const resetTournamentForm = () => {
+        setSelectedTournamentId("");
+        setNewTournament("");
+        setAmountOfTeams("");
+        setRegisteredTeams("");
+        setNewTournamentDesc("");
+        setNewTournamentDate("");
+        setNewTournamentLink("");
+        setTournamentLogoFile(null);
+    };
 
+    const selectTournamentToEdit = (event) => {
+        const tournamentId = event.target.value;
+        const tournament = tournaments.find((item) => String(item.id) === tournamentId);
+        setSelectedTournamentId(tournamentId);
+
+        if (!tournament) {
+            resetTournamentForm();
+            return;
+        }
+
+        const startDate = tournament.starts ? new Date(tournament.starts) : null;
+        const localStart = startDate && !Number.isNaN(startDate.getTime())
+            ? new Date(startDate.getTime() - startDate.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16)
+            : "";
+
+        setNewTournament(tournament.name ?? "");
+        setAmountOfTeams(String(tournament.amount_of_teams ?? ""));
+        setRegisteredTeams(String(tournament.registered_teams ?? ""));
+        setNewTournamentDesc(tournament.description ?? "");
+        setNewTournamentDate(localStart);
+        setNewTournamentLink(tournament.link ?? "");
+        setTournamentLogoFile(null);
+    };
+
+    const saveTournament = async (event) => {
         event.preventDefault();
 
-        const name = newTournament.trim()
-        const amountOfTeams2 = amountOfTeams.trim()
-        const registeredTeams2 = registeredTeams.trim()
-        const description = newTournamentDesc.trim()
-        const tournamentDate = newTournamentDate
+        const name = newTournament.trim();
+        const amount = Number(amountOfTeams);
+        const registered = Number(registeredTeams);
+        const description = newTournamentDesc.trim();
+        const link = newTournamentLink.trim();
+        const starts = new Date(newTournamentDate);
 
-        if (!name || !description || !amountOfTeams2 || !registeredTeams2 || !tournamentDate) {
+        if (
+            !name ||
+            !description ||
+            amountOfTeams === "" ||
+            registeredTeams === "" ||
+            !newTournamentDate
+        ) {
             showMessage("Wypełnij wszystkie pola.", "error");
             return;
         }
 
-        setLoading(true)
-        clearMessage()
+        if (
+            !Number.isInteger(amount) ||
+            amount < 0 ||
+            !Number.isInteger(registered) ||
+            registered < 0
+        ) {
+            showMessage("Liczba drużyn musi być nieujemną liczbą całkowitą.", "error");
+            return;
+        }
 
-        const { data, error } = await supabase
-            .from("tournaments")
-            .insert({ name: name, amount_of_teams: Number(amountOfTeams2), registered_teams: Number(registeredTeams2), starts: newTournamentDate, description: description })
+        if (Number.isNaN(starts.getTime())) {
+            showMessage("Podana data rozpoczęcia jest nieprawidłowa.", "error");
+            return;
+        }
 
-        if (error) {
-            console.error("Error inserting tournament:", error.message);
-            showMessage(`Błąd dodawania turnieju: ${error.message}`, "error");
+        if (link) {
+            try {
+                const parsedLink = new URL(link);
+                if (!["http:", "https:"].includes(parsedLink.protocol)) {
+                    throw new Error("Unsupported protocol");
+                }
+            } catch {
+                showMessage("Podaj prawidłowy adres URL rozpoczynający się od http:// lub https://.", "error");
+                return;
+            }
+        }
+
+        let logoPath = tournaments.find(
+            (tournament) => String(tournament.id) === selectedTournamentId
+        )?.logo ?? null;
+
+        if (tournamentLogoFile) {
+            const extensions = {
+                "image/jpeg": "jpg",
+                "image/png": "png",
+                "image/webp": "webp",
+            };
+            const extension = extensions[tournamentLogoFile.type];
+
+            if (!extension) {
+                showMessage("Wybierz logo PNG, JPG lub WebP.", "error");
+                return;
+            }
+
+            if (tournamentLogoFile.size > 10 * 1024 * 1024) {
+                showMessage("Logo może mieć maksymalnie 10 MB.", "error");
+                return;
+            }
+
+            logoPath = `${crypto.randomUUID()}.${extension}`;
+        }
+
+        setLoading(true);
+        clearMessage();
+
+        if (tournamentLogoFile) {
+            const { error: uploadError } = await supabase.storage
+                .from("tournaments")
+                .upload(logoPath, tournamentLogoFile, {
+                    contentType: tournamentLogoFile.type,
+                    upsert: false,
+                });
+
+            if (uploadError) {
+                console.error("Error uploading tournament logo:", uploadError.message);
+                showMessage(`Błąd przesyłania logo turnieju: ${uploadError.message}`, "error");
+                setLoading(false);
+                return;
+            }
+        }
+
+        const tournamentData = {
+            name,
+            amount_of_teams: amount,
+            registered_teams: registered,
+            starts: starts.toISOString(),
+            description,
+            link: link || null,
+            logo: logoPath,
+        };
+
+        const result = selectedTournamentId
+            ? await supabase
+                .from("tournaments")
+                .update(tournamentData)
+                .eq("id", selectedTournamentId)
+            : await supabase.from("tournaments").insert(tournamentData);
+
+        if (result.error) {
+            console.error("Error saving tournament:", result.error.message);
+            if (tournamentLogoFile && logoPath) {
+                const { error: cleanupError } = await supabase.storage
+                    .from("tournaments")
+                    .remove([logoPath]);
+
+                if (cleanupError) {
+                    console.error("Error removing unused tournament logo:", cleanupError.message);
+                }
+            }
+            showMessage(`Błąd zapisywania turnieju: ${result.error.message}`, "error");
             setLoading(false);
             return;
         }
 
-        setNewTournament("")
-        setAmountOfTeams("")
-        setRegisteredTeams("")
-        setNewTournamentDesc("")
-        setNewTournamentDate("")
-        showMessage("Turniej dodany")
+        const refreshed = await loadMatchesAndTournaments();
+        if (refreshed) {
+            resetTournamentForm();
+            showMessage(
+                selectedTournamentId ? "Turniej został zaktualizowany." : "Turniej został dodany.",
+                "success"
+            );
+        }
 
-        setLoading(false)
-    }
+        setLoading(false);
+    };
+
+    const removeTournament = async () => {
+        const tournament = tournaments.find(
+            (item) => String(item.id) === selectedTournamentId
+        );
+
+        if (!tournament) {
+            showMessage("Najpierw wybierz turniej.", "error");
+            return;
+        }
+
+        if (!window.confirm(`Czy na pewno chcesz usunąć turniej "${tournament.name}"?`)) {
+            return;
+        }
+
+        setLoading(true);
+        clearMessage();
+
+        const { error } = await supabase
+            .from("tournaments")
+            .delete()
+            .eq("id", selectedTournamentId);
+
+        if (error) {
+            console.error("Error deleting tournament:", error.message);
+            showMessage(`Błąd usuwania turnieju: ${error.message}`, "error");
+            setLoading(false);
+            return;
+        }
+
+        const refreshed = await loadMatchesAndTournaments();
+        if (refreshed) {
+            resetTournamentForm();
+            showMessage("Turniej został usunięty.", "success");
+        }
+
+        setLoading(false);
+    };
 
     const selectPlayer = (event) => {
         const id = event.target.value;
@@ -1256,6 +1440,9 @@ const AdminPanel = () => {
             team_2_id: "",
             league: "",
             time: "",
+            team_1_score: "",
+            team_2_score: "",
+            finished: false,
         });
     };
 
@@ -1282,6 +1469,9 @@ const AdminPanel = () => {
             team_2_id: String(match.team_2_id ?? ""),
             league: String(match.league ?? ""),
             time: localTime,
+            team_1_score: match.team_1_score == null ? "" : String(match.team_1_score),
+            team_2_score: match.team_2_score == null ? "" : String(match.team_2_score),
+            finished: Boolean(match.finished),
         });
     };
 
@@ -1304,11 +1494,32 @@ const AdminPanel = () => {
             return;
         }
 
+        const score1Value = matchForm.team_1_score ?? "";
+        const score2Value = matchForm.team_2_score ?? "";
+        const score1 = score1Value === "" ? null : Number(score1Value);
+        const score2 = score2Value === "" ? null : Number(score2Value);
+
+        if (
+            (score1 !== null && (!Number.isInteger(score1) || score1 < 0)) ||
+            (score2 !== null && (!Number.isInteger(score2) || score2 < 0))
+        ) {
+            showMessage("Wynik musi składać się z nieujemnych liczb całkowitych.", "error");
+            return;
+        }
+
+        if (matchForm.finished && (score1 === null || score2 === null)) {
+            showMessage("Podaj wynik obu drużyn, aby oznaczyć mecz jako zakończony.", "error");
+            return;
+        }
+
         const matchData = {
             team_1_id: matchForm.team_1_id,
             team_2_id: matchForm.team_2_id,
             league: matchForm.league,
             time: matchTime.toISOString(),
+            team_1_score: score1,
+            team_2_score: score2,
+            finished: Boolean(matchForm.finished),
         };
 
         setLoading(true);
@@ -1332,6 +1543,45 @@ const AdminPanel = () => {
                 selectedMatchId ? "Mecz został zaktualizowany." : "Mecz został dodany.",
                 "success"
             );
+        }
+
+        setLoading(false);
+    };
+
+    const removeMatch = async () => {
+        const match = matches.find(
+            (item) => String(item.id) === selectedMatchId
+        );
+
+        if (!match) {
+            showMessage("Najpierw wybierz mecz.", "error");
+            return;
+        }
+
+        const matchName = `${match.team_1?.name ?? "Drużyna 1"} vs ${match.team_2?.name ?? "Drużyna 2"}`;
+        if (!window.confirm(`Czy na pewno chcesz usunąć mecz "${matchName}"?`)) {
+            return;
+        }
+
+        setLoading(true);
+        clearMessage();
+
+        const { error } = await supabase
+            .from("matches")
+            .delete()
+            .eq("id", selectedMatchId);
+
+        if (error) {
+            console.error("Error deleting match:", error.message);
+            showMessage(`Błąd usuwania meczu: ${error.message}`, "error");
+            setLoading(false);
+            return;
+        }
+
+        const refreshed = await loadMatchesAndTournaments();
+        if (refreshed) {
+            resetMatchForm();
+            showMessage("Mecz został usunięty.", "success");
         }
 
         setLoading(false);
@@ -1833,7 +2083,8 @@ const AdminPanel = () => {
                                 <option value="">Dodaj nowy mecz</option>
                                 {matches.map((match) => (
                                     <option key={match.id} value={String(match.id)}>
-                                        {match.team_1?.name ?? "Drużyna 1"} vs {match.team_2?.name ?? "Drużyna 2"}
+                                        {match.team_1?.name ?? "Drużyna 1"} vs {match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}
+                                        {match.finished && ` · ${match.team_1_score ?? "—"}:${match.team_2_score ?? "—"}`}
                                         {" · "}
                                         {match.time
                                             ? new Date(match.time).toLocaleString("pl-PL", {
@@ -1845,7 +2096,7 @@ const AdminPanel = () => {
                                 ))}
                             </select>
                             <p className="mt-2 text-xs text-gray-500">
-                                Wybierz istniejący mecz, aby zmienić drużyny, turniej lub termin.
+                                Wybierz istniejący mecz, aby zmienić drużyny, turniej, termin lub wynik.
                             </p>
                         </div>
 
@@ -1929,11 +2180,57 @@ const AdminPanel = () => {
                                     required
                                 />
                             </div>
+                            <div className="min-w-0">
+                                <label htmlFor="match-team-1-score" className="mb-1 block text-xs text-gray-400">
+                                    Wynik drużyny 1
+                                </label>
+                                <input
+                                    id="match-team-1-score"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={matchForm.team_1_score ?? ""}
+                                    onChange={(event) => setMatchForm((current) => ({
+                                        ...current,
+                                        team_1_score: event.target.value,
+                                    }))}
+                                    className="w-full border p-2.5 text-sm"
+                                />
+                            </div>
+                            <div className="min-w-0">
+                                <label htmlFor="match-team-2-score" className="mb-1 block text-xs text-gray-400">
+                                    Wynik drużyny 2
+                                </label>
+                                <input
+                                    id="match-team-2-score"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={matchForm.team_2_score ?? ""}
+                                    onChange={(event) => setMatchForm((current) => ({
+                                        ...current,
+                                        team_2_score: event.target.value,
+                                    }))}
+                                    className="w-full border p-2.5 text-sm"
+                                />
+                            </div>
+                            <label className="flex items-center gap-2 text-sm text-gray-300 sm:col-span-2">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(matchForm.finished)}
+                                    onChange={(event) => setMatchForm((current) => ({
+                                        ...current,
+                                        finished: event.target.checked,
+                                    }))}
+                                    className="h-4 w-4 accent-green-600"
+                                />
+                                Mecz zakończony
+                            </label>
                             <div className="flex flex-wrap gap-2 sm:col-span-2">
                                 <button
                                     type="submit"
                                     disabled={loading || teams.length < 2 || tournaments.length === 0}
-                                    className="rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 hover:cursor-pointer"
                                 >
                                     <span className="inline-flex items-center gap-2">
                                         <img
@@ -1946,25 +2243,54 @@ const AdminPanel = () => {
                                     </span>
                                 </button>
                                 {selectedMatchId && (
-                                    <button
-                                        type="button"
-                                        onClick={resetMatchForm}
-                                        disabled={loading}
-                                        className="rounded border border-white/10 px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-50"
-                                    >
-                                        Anuluj edycję
-                                    </button>
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={resetMatchForm}
+                                            disabled={loading}
+                                            className="rounded border border-white/10 px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-50 hover:cursor-pointer"
+                                        >
+                                            Anuluj edycję
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={removeMatch}
+                                            disabled={loading}
+                                            className="rounded border border-red-800/60 px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:bg-red-950/40 disabled:opacity-50 hover:cursor-pointer"
+                                        >
+                                            <span className="inline-flex items-center gap-2">
+                                                <img src={removeIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-80" />
+                                                Usuń mecz
+                                            </span>
+                                        </button>
+                                    </>
                                 )}
                             </div>
                         </form>
 
                     </div>
                 </section>
-                <form onSubmit={addTournament} className="mb-4 min-w-0 border border-white/10">
+                <form onSubmit={saveTournament} className="mb-4 min-w-0 border border-white/10">
                     <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
-                        Dodanie turnieju
+                        Turnieje
                     </h2>
                     <div className="p-4">
+                        <label htmlFor="tournament-to-edit" className="mb-2 block text-sm text-gray-300">
+                            Wybierz turniej do edycji lub dodaj nowy
+                        </label>
+                        <select
+                            id="tournament-to-edit"
+                            value={selectedTournamentId}
+                            onChange={selectTournamentToEdit}
+                            className="mb-4 w-full border p-2.5 text-sm"
+                        >
+                            <option value="">Nowy turniej</option>
+                            {tournaments.map((tournament) => (
+                                <option key={tournament.id} value={String(tournament.id)}>
+                                    {tournament.name}
+                                </option>
+                            ))}
+                        </select>
                         <label htmlFor="new-tournament-name" className="mb-2 flex gap-2 items-center block text-white">
                             <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
                             Nazwa
@@ -1992,6 +2318,17 @@ const AdminPanel = () => {
                             className="w-full min-w-0 border p-2.5 text-white"
                             required
                         ></textarea>
+                        <label htmlFor="tournament-link" className="mb-2 mt-4 block text-sm text-gray-300">
+                            Link do turnieju
+                        </label>
+                        <input
+                            id="tournament-link"
+                            type="url"
+                            value={newTournamentLink}
+                            onChange={(event) => setNewTournamentLink(event.target.value)}
+                            placeholder="https://..."
+                            className="w-full border p-2.5 text-sm"
+                        />
                         <h2 className="text-white mb-2">
                             Ilość drużyn
                         </h2>
@@ -2032,100 +2369,58 @@ const AdminPanel = () => {
                             />
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="mt-4 w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <span className="inline-flex items-center gap-2">
-                                <img src={addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
-                                {loading ? "Przetwarzanie..." : "Dodaj turniej"}
-                            </span>
-                        </button>
-                    </div>
-                </form>
-                <form onSubmit={addTournament} className="mb-4 min-w-0 border border-white/10">
-                    <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
-                        Edycja turnieju (niezrobione)
-                    </h2>
-                    <div className="p-4">
-                        <label htmlFor="new-tournament-name" className="mb-2 flex gap-2 items-center block text-white">
-                            <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
-                            Nazwa
+                        <label htmlFor="tournament-logo" className="mb-2 mt-4 block text-sm text-gray-300">
+                            Logo turnieju (PNG, JPG lub WebP, maks. 10 MB)
                         </label>
                         <input
-                            id="new-tournament-name"
-                            type="text"
-                            name="tournamentName"
-                            placeholder="Nazwa turnieju..."
-                            value={newTournament}
-                            onChange={(event) => setNewTournament(event.target.value)}
-                            className="w-full min-w-0 border p-2.5 text-white"
-                            required
+                            id="tournament-logo"
+                            key={selectedTournamentId || "new-tournament"}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={(event) => setTournamentLogoFile(event.target.files?.[0] ?? null)}
+                            className="w-full border p-2.5 text-sm text-gray-300 file:mr-3 file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-white"
                         />
-                        <label htmlFor="new-tournament-desc" className="mb-2 mt-4 flex gap-2 items-center block text-white">
-                            <img src={inputIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-70" />
-                            Opis
-                        </label>
-                        <textarea
-                            name="tournamentDesc"
-                            id="new-tournament-desc"
-                            placeholder="Opis turnieju..."
-                            value={newTournamentDesc}
-                            onChange={(event) => setNewTournamentDesc(event.target.value)}
-                            className="w-full min-w-0 border p-2.5 text-white"
-                            required
-                        ></textarea>
-                        <h2 className="text-white mb-2">
-                            Ilość drużyn
-                        </h2>
-                        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <input
-                                type="number"
-                                required
-                                min="0"
-                                name="regTeams"
-                                placeholder="Zapisanych"
-                                value={registeredTeams}
-                                onChange={(event) => setRegisteredTeams(event.target.value)}
-                                className="mb-4 w-full min-w-0 border p-2.5 text-center"
-                            />
-                            <input
-                                type="number"
-                                required
-                                min="0"
-                                name="increasePoints"
-                                placeholder="Maksymalnie"
-                                value={amountOfTeams}
-                                onChange={(event) => setAmountOfTeams(event.target.value)}
-                                className="mb-4 w-full min-w-0 border p-2.5 text-center"
-                            />
-                        </div>
-                        <div className="min-w-0">
-                            <label htmlFor="new-tournament-date" className="mb-2 flex gap-2 items-center block text-white">
-                                <img src={clockIcon} alt="" aria-hidden="true" className="h-3.5 w-3.5 invert opacity-60" />
-                                Rozpoczęcie
-                            </label>
-                            <input
-                                id="new-tournament-date"
-                                type="datetime-local"
-                                value={newTournamentDate}
-                                onChange={(event) => setNewTournamentDate(event.target.value)}
-                                className="w-full border p-2.5 text-sm"
-                                required
-                            />
-                        </div>
+                        {selectedTournamentId && tournaments.find(
+                            (tournament) => String(tournament.id) === selectedTournamentId
+                        )?.logo && !tournamentLogoFile && (
+                                <p className="mt-2 text-xs text-gray-500">
+                                    Obecne logo pozostanie bez zmian, jeśli nie wybierzesz nowego pliku.
+                                </p>
+                            )}
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="mt-4 w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="mt-4 w-fit cursor-pointer rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 hover:cursor-pointer"
                         >
                             <span className="inline-flex items-center gap-2">
-                                <img src={addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
-                                {loading ? "Przetwarzanie..." : "Dodaj turniej"}
+                                <img src={selectedTournamentId ? acceptIcon : addIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                {loading ? "Zapisywanie..." : selectedTournamentId ? "Zapisz zmiany" : "Dodaj turniej"}
                             </span>
                         </button>
+                        {selectedTournamentId && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={resetTournamentForm}
+                                    disabled={loading}
+                                    className="ml-3 mt-4 w-fit rounded border border-white/10 px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-50 hover:cursor-pointer"
+                                >
+                                    Anuluj edycję
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={removeTournament}
+                                    disabled={loading}
+                                    className="ml-3 mt-4 w-fit rounded border border-red-800/60 px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:bg-red-950/40 disabled:opacity-50 hover:cursor-pointer"
+                                >
+                                    <span className="inline-flex items-center gap-2">
+                                        <img src={removeIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-80" />
+                                        Usuń turniej
+                                    </span>
+                                </button>
+                            </>
+                        )}
                     </div>
                 </form>
             </div>
