@@ -527,14 +527,14 @@ async function syncUpcomingFixtures(
     if (upsertError) throw upsertError;
   }
 
-  const { error: cleanupError } = await supabase
+  const { error: overdueFixturesError } = await supabase
     .from("matches")
-    .delete()
+    .update({ finished: true })
     .eq("team_1_id", team.id)
     .eq("finished", false)
     .not("faceit_match_id", "is", null)
     .lt("time", new Date(now).toISOString());
-  if (cleanupError) throw cleanupError;
+  if (overdueFixturesError) throw overdueFixturesError;
 
   const syncTimestamps: {
     esea_fixtures_synced_at?: string;
