@@ -204,10 +204,12 @@ const Matches = () => {
 
         return groups.map((group) => (
             <section key={group.key}>
-                <h3 className="border-b border-white/10 px-4 py-3 text-sm font-bold capitalize text-white">
+                <h3 className=" py-3 text-sm font-bold capitalize text-white">
                     {group.label}
                 </h3>
-                <ul>{group.matches.map(renderMatch)}</ul>
+                <ul>
+                    {group.matches.map(renderMatch)}
+                </ul>
             </section>
         ));
     };
@@ -223,7 +225,7 @@ const Matches = () => {
                 <Link
                     to="/match"
                     state={{ id: match.id }}
-                    className="flex min-w-0 items-center gap-2 px-4 py-4 transition-colors border border-white/10 hover:border-white/20 my-4 hover:bg-white/[0.03] sm:gap-4 sm:px-6"
+                    className="flex min-w-0 items-center gap-2 px-4 py-4 transition-colors border border-white/10 hover:border-white/20 hover:bg-white/[0.03] sm:gap-4 sm:px-6"
                 >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-black/30">
                         {team1Logo ? (
@@ -306,7 +308,7 @@ const Matches = () => {
                 <div className="space-y-8">
                     {liveMatches.length > 0 && (
                         <section>
-                            <h2 className="border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                            <h2 className=" bg-bg w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                                 MECZE LIVE
                             </h2>
                             {renderGroupedMatches(liveMatches, true)}
@@ -314,7 +316,7 @@ const Matches = () => {
                     )}
                     {scheduledMatches.length > 0 && (
                         <section>
-                            <h2 className="border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                            <h2 className="bg-bg w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                                 Nadchodzące mecze
                             </h2>
                             {renderGroupedMatches(scheduledMatches)}
@@ -322,7 +324,7 @@ const Matches = () => {
                     )}
                     {pageFinishedMatches.length > 0 && (
                         <section>
-                            <h2 className="border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                            <h2 className="bg-bg w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                                 Zakończone mecze
                             </h2>
                             {renderGroupedMatches(pageFinishedMatches)}
