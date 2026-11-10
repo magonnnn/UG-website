@@ -72,7 +72,8 @@ const Navbar = () => {
         { to: "/matches", label: "Mecze" },
         { to: "/contact", label: "Kontakt" },
         { to: "/partners", label: "Partnerzy" },
-        { to: "/tournaments", label: "Turnieje" }
+        { to: "/tournaments", label: "Turnieje" },
+        { to: "/announcements", label: "Ogłoszenia" }
     ];
 
     const renderNavLinks = (mobile = false) => navItems.map(({ to, label, featured }) => (

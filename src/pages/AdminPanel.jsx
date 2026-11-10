@@ -137,6 +137,8 @@ const AdminPanel = () => {
     const [players, setPlayers] = useState([])
     const [tournaments, setTournaments] = useState([]);
     const [matches, setMatches] = useState([]);
+    const [pendingAnnouncements, setPendingAnnouncements] = useState([]);
+    const [approvingAnnouncementId, setApprovingAnnouncementId] = useState(null);
     const [selectedMatchId, setSelectedMatchId] = useSessionState("admin-selected-match-id", "");
     const [matchForm, setMatchForm] = useSessionState("admin-match-form", {
         team_1_id: "",
@@ -210,6 +212,63 @@ const AdminPanel = () => {
     const selectedTeam = teams.find(
         (team) => String(team.id) === selectedTeamId
     );
+
+    const loadPendingAnnouncements = useCallback(async () => {
+        const { data, error } = await supabase
+            .from("announcements")
+            .select("id, title, content, created_at, added_by_username")
+            .eq("is_approved", false)
+            .order("created_at", { ascending: true });
+
+        if (error) {
+            console.error("Error loading pending announcements:", error.message);
+            setFeedback({
+                text: `Błąd ładowania oczekujących ogłoszeń: ${error.message}`,
+                type: "error",
+            });
+            return false;
+        }
+
+        setPendingAnnouncements(data ?? []);
+        return true;
+    }, []);
+
+    useEffect(() => {
+        void Promise.resolve().then(loadPendingAnnouncements);
+    }, [loadPendingAnnouncements]);
+
+    const approveAnnouncement = async (announcement) => {
+        setApprovingAnnouncementId(announcement.id);
+        clearMessage();
+
+        const { data, error } = await supabase
+            .from("announcements")
+            .update({ is_approved: true })
+            .eq("id", announcement.id)
+            .eq("is_approved", false)
+            .select("id")
+            .maybeSingle();
+
+        if (error) {
+            console.error("Error approving announcement:", error.message);
+            showMessage(`Błąd akceptowania ogłoszenia: ${error.message}`, "error");
+            setApprovingAnnouncementId(null);
+            return;
+        }
+
+        if (!data) {
+            await loadPendingAnnouncements();
+            showMessage("To ogłoszenie nie jest już oczekujące na akceptację.", "error");
+            setApprovingAnnouncementId(null);
+            return;
+        }
+
+        setPendingAnnouncements((current) =>
+            current.filter((item) => item.id !== announcement.id)
+        );
+        showMessage("Ogłoszenie zostało opublikowane.", "success");
+        setApprovingAnnouncementId(null);
+    };
 
     const loadTeams = useCallback(async () => {
         const { data, error } = await supabase
@@ -1616,6 +1675,46 @@ const AdminPanel = () => {
                 )
             }
             <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+                <section className="min-w-0 border border-white/10 xl:col-span-2">
+                    <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">
+                        Ogłoszenia do akceptacji ({pendingAnnouncements.length})
+                    </h2>
+                    {pendingAnnouncements.length === 0 ? (
+                        <p className="p-4 text-sm text-gray-400">
+                            Brak ogłoszeń oczekujących na akceptację.
+                        </p>
+                    ) : (
+                        <ul className="divide-y divide-white/10">
+                            {pendingAnnouncements.map((announcement) => (
+                                <li key={announcement.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
+                                    <article className="min-w-0">
+                                        <h3 className="break-words font-bold text-white">
+                                            {announcement.title}
+                                        </h3>
+                                        <p className="mt-1 text-xs text-gray-400">
+                                            Dodane przez: {announcement.added_by_username || "Nieznany użytkownik"}
+                                            {announcement.created_at
+                                                ? ` · ${new Date(announcement.created_at).toLocaleString("pl-PL")}`
+                                                : ""}
+                                        </p>
+                                        <p className="mt-3 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm text-gray-300">
+                                            {announcement.content}
+                                        </p>
+                                    </article>
+                                    <button
+                                        type="button"
+                                        onClick={() => approveAnnouncement(announcement)}
+                                        disabled={approvingAnnouncementId !== null}
+                                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <img src={acceptIcon} alt="" aria-hidden="true" className="h-4 w-4 invert" />
+                                        {approvingAnnouncementId === announcement.id ? "Publikowanie..." : "Zatwierdź i opublikuj"}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </section>
 
                 <form onSubmit={updateDatabase} className="min-w-0 border border-white/10">
                     <h2 className="border-b border-white/10 px-4 py-3 text-sm font-bold text-white">

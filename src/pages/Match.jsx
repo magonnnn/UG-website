@@ -12,23 +12,16 @@ const Match = () => {
 
     useEffect(() => {
         let active = true;
+        let liveSyncInterval;
 
-        const loadMatch = async () => {
-            if (!matchId) {
-                setError("Nie wybrano meczu.");
-                setLoading(false);
-                return;
-            }
-
-            setLoading(true);
-            setError("");
-
+        const fetchMatch = async () => {
             const { data, error: queryError } = await supabase
                 .from("matches")
                 .select(`
                     id,
                     time,
                     team_2_name,
+                    team_1_id,
                     faceit_match_id,
                     team_1_score,
                     team_2_score,
@@ -36,7 +29,8 @@ const Match = () => {
                     team_1:teams!matches_team_1_id_fkey (
                         id,
                         name,
-                        logo
+                        logo,
+                        faceit_id
                     ),
                     team_2:teams!matches_team_2_id_fkey (
                         id,
@@ -50,24 +44,97 @@ const Match = () => {
                 .eq("id", matchId)
                 .maybeSingle();
 
-            if (!active) return;
-
             if (queryError) {
                 console.error("Error loading match:", queryError.message);
-                setError("Nie udało się załadować meczu.");
+                return { data: null, error: "Nie udało się załadować meczu." };
             } else if (!data) {
-                setError("Nie znaleziono tego meczu.");
-            } else {
-                setMatch(data);
+                return { data: null, error: "Nie znaleziono tego meczu." };
             }
 
-            setLoading(false);
+            return { data, error: "" };
         };
 
-        loadMatch();
+        const loadMatch = async () => {
+            if (!matchId) {
+                setError("Nie wybrano meczu.");
+                setLoading(false);
+                return null;
+            }
+
+            setLoading(true);
+            setError("");
+            const result = await fetchMatch();
+
+            if (!active) return null;
+
+            if (!result.data) {
+                setError(result.error);
+                setLoading(false);
+                return null;
+            }
+
+            setMatch(result.data);
+            setLoading(false);
+            return result.data;
+        };
+
+        const syncLiveMatch = async (currentMatch) => {
+            if (
+                !active ||
+                !currentMatch.faceit_match_id ||
+                !currentMatch.team_1?.id ||
+                !currentMatch.team_1?.faceit_id
+            ) {
+                return;
+            }
+
+            const { data, error: syncError } = await supabase.functions.invoke(
+                "faceit-team-league",
+                {
+                    body: {
+                        action: "sync-fixtures",
+                        faceitId: currentMatch.team_1.faceit_id,
+                        teamId: String(currentMatch.team_1.id),
+                    },
+                }
+            );
+
+            if (!active) return;
+
+            if (syncError || data?.error) {
+                console.error(
+                    "FACEIT live match sync failed:",
+                    syncError ?? data.error
+                );
+                return;
+            }
+
+            const result = await fetchMatch();
+            if (!active || !result.data) return;
+
+            setMatch(result.data);
+            if (result.data.finished && liveSyncInterval) {
+                window.clearInterval(liveSyncInterval);
+            }
+        };
+
+        const initializeMatch = async () => {
+            const initialMatch = await loadMatch();
+            if (!active || !initialMatch?.faceit_match_id || initialMatch.finished) return;
+
+            if (initialMatch.team_1?.faceit_id) {
+                void syncLiveMatch(initialMatch);
+                liveSyncInterval = window.setInterval(() => {
+                    void syncLiveMatch(initialMatch);
+                }, 60 * 1000);
+            }
+        };
+
+        void initializeMatch();
 
         return () => {
             active = false;
+            if (liveSyncInterval) window.clearInterval(liveSyncInterval);
         };
     }, [matchId]);
 
@@ -106,6 +173,8 @@ const Match = () => {
             label: match.team_2?.name ?? match.team_2_name ?? "Drużyna 2",
         },
     ];
+    const hasLiveScore = !match.finished &&
+        (match.team_1_score != null || match.team_2_score != null);
 
     return (
         <article className="my-6 min-w-0">
@@ -120,7 +189,7 @@ const Match = () => {
                     </p>
                 </div>
                 <span className="rounded-full bg-[#17191e] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-300">
-                    {match.finished ? "Zakończony" : "Zaplanowany"}
+                    {match.finished ? "Zakończony" : hasLiveScore ? "Na żywo" : "Zaplanowany"}
                 </span>
             </div>
 
@@ -163,9 +232,9 @@ const Match = () => {
                     );
                 })}
                 <div className="order-2 text-center">
-                    <span className={`text-2xl font-black tabular-nums sm:text-4xl ${match.finished ? "text-white" : "tracking-widest text-gray-500"}`}>
-                        {match.finished
-                            ? `${match.team_1_score ?? "—"} : ${match.team_2_score ?? "—"}`
+                    <span className={`text-2xl font-black tabular-nums sm:text-4xl ${match.finished ? "text-white" : hasLiveScore ? "text-gray-400" : "tracking-widest text-gray-500"}`}>
+                        {match.finished || hasLiveScore
+                            ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
                             : "VS"}
                     </span>
                 </div>

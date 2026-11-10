@@ -32,7 +32,11 @@ const RightBar = () => {
     }, []);
 
     useEffect(() => {
-        const loadUpcomingMatches = async () => {
+        let active = true;
+        let refreshInProgress = false;
+        let syncInterval;
+
+        const queryUpcomingMatches = async () => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
@@ -46,16 +50,23 @@ const RightBar = () => {
                     time,
                     team_2_name,
                     faceit_match_id,
+                    team_1_score,
+                    team_2_score,
+                    finished,
                     league:tournaments!matches_league_fkey(
                         name
                     ),
                     team_1:teams!matches_team_1_id_fkey(
+                        id,
                         name,
-                        logo
+                        logo,
+                        faceit_id
                     ),
                     team_2:teams!matches_team_2_id_fkey(
+                        id,
                         name,
-                        logo
+                        logo,
+                        faceit_id
                     )
                     `)
                 .gte("time", today.toISOString())
@@ -63,18 +74,87 @@ const RightBar = () => {
                 .or("finished.is.null,finished.eq.false")
                 .order("time", { ascending: true });
 
+            if (!active) return null;
+
             if (error) {
                 console.error("Error loading matches:", error.message);
                 setMatchesError("Nie udało się załadować meczów.");
                 setMatchesLoading(false);
-                return;
+                return null;
             }
 
             setMatches(data ?? []);
             setMatchesLoading(false);
+            return data ?? [];
         }
 
-        loadUpcomingMatches();
+        const refreshMatches = async () => {
+            if (!active || refreshInProgress || document.hidden) return;
+            refreshInProgress = true;
+
+            const data = await queryUpcomingMatches();
+            if (!active || !data) {
+                refreshInProgress = false;
+                return;
+            }
+
+            const faceitTeams = new Map();
+            data.filter((match) => match.faceit_match_id && !match.finished)
+                .forEach((match) => {
+                    [match.team_1, match.team_2].forEach((team) => {
+                        if (team?.faceit_id && team.id != null) {
+                            faceitTeams.set(String(team.id), team);
+                        }
+                    });
+                });
+
+            const syncResults = await Promise.all([...faceitTeams.values()].map(async (team) => {
+                try {
+                    const { data: syncData, error: syncError } = await supabase.functions.invoke(
+                        "faceit-team-league",
+                        {
+                            body: {
+                                action: "sync-fixtures",
+                                faceitId: team.faceit_id,
+                                teamId: String(team.id),
+                            },
+                        }
+                    );
+
+                    if (syncError || syncData?.error) {
+                        console.error(
+                            `FACEIT rightbar match sync failed for ${team.name}:`,
+                            syncError ?? syncData.error
+                        );
+                        return false;
+                    }
+
+                    return true;
+                } catch (syncError) {
+                    console.error(
+                        `FACEIT rightbar match sync failed for ${team.name}:`,
+                        syncError
+                    );
+                    return false;
+                }
+            }));
+
+            if (active && syncResults.some(Boolean)) {
+                await queryUpcomingMatches();
+            }
+
+            refreshInProgress = false;
+        };
+
+        void refreshMatches();
+        syncInterval = window.setInterval(() => {
+            void refreshMatches();
+        }, 60 * 1000);
+
+        return () => {
+            active = false;
+            if (syncInterval) window.clearInterval(syncInterval);
+        };
     }, []);
 
     const getLogoUrl = (logo) => {
@@ -156,7 +236,18 @@ const RightBar = () => {
                                 </div>
                                 <div className="mt-2 flex items-center justify-between gap-2 text-sm text-white">
                                     <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
-                                    <img src={matchIcon} alt="" aria-hidden="true" className="h-3 w-3 invert opacity-60" />
+                                    {match.team_1_score != null || match.team_2_score != null ? (
+                                        <div className="flex shrink-0 flex-col items-center gap-1 whitespace-nowrap">
+                                            {!match.finished && (
+                                                <span className="text-xs text-red-500">LIVE</span>
+                                            )}
+                                            <span className="whitespace-nowrap text-sm font-bold tabular-nums text-gray-400">
+                                                {match.team_1_score ?? "-"}:{match.team_2_score ?? "-"}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <img src={matchIcon} alt="" aria-hidden="true" className="h-3 w-3 invert opacity-60" />
+                                    )}
                                     <span className="min-w-0 truncate text-right">{match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}</span>
                                 </div>
                             </Link>

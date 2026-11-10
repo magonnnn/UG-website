@@ -19,6 +19,7 @@ import Transfers from "./pages/Transfers";
 import Matches from "./pages/Matches";
 import PrivacyPolicy from "./pages/DataInfo";
 import Tournaments from "./pages/Tournaments";
+import Announcements from "./pages/Announcements";
 
 const ScrollToTop = () => {
   const { key } = useLocation();
@@ -66,6 +67,7 @@ const App = () => {
               <Route path="/matches" element={<Matches />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/tournaments" element={<Tournaments />} />
+              <Route path="/announcements" element={<Announcements />} />
             </Routes>
           </main>
 

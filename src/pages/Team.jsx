@@ -120,42 +120,46 @@ const Team = () => {
         }
 
         let active = true;
+        let syncInProgress = false;
+        let syncInterval;
 
-        async function getTeamInfo() {
-            const refreshMatches = async () => {
-                const matchesResult = await loadTeamMatches(teamId);
-                if (!active) return;
+        const syncTeamMatches = async () => {
+            if (!active || syncInProgress || document.hidden) return;
+            syncInProgress = true;
 
-                if (matchesResult.error) {
-                    console.error("Error refreshing team matches:", matchesResult.error.message);
-                    setMatchesError("Nie udało się załadować meczów drużyny.");
-                } else {
-                    setMatches(matchesResult.data ?? []);
-                    setMatchesError("");
-                }
-            };
-
-            void supabase.functions.invoke("faceit-team-league", {
+            const { data, error } = await supabase.functions.invoke("faceit-team-league", {
                 body: {
                     action: "sync-fixtures",
                     faceitId,
                     teamId: String(teamId),
                 },
-            }).then(async ({ data, error }) => {
-                if (error) {
-                    console.error("ESEA fixture sync failed:", error);
-                    return;
-                }
-
-                if (data?.error) {
-                    console.error("ESEA fixture sync failed:", data.error);
-                    return;
-                }
-
-                await refreshMatches();
-            }).catch((error) => {
-                console.error("ESEA fixture sync failed:", error);
             });
+
+            syncInProgress = false;
+            if (!active) return;
+
+            if (error || data?.error) {
+                console.error("ESEA fixture sync failed:", error ?? data.error);
+                return;
+            }
+
+            const matchesResult = await loadTeamMatches(teamId);
+            if (!active) return;
+
+            if (matchesResult.error) {
+                console.error("Error refreshing team matches:", matchesResult.error.message);
+                setMatchesError("Nie udało się załadować meczów drużyny.");
+            } else {
+                setMatches(matchesResult.data ?? []);
+                setMatchesError("");
+            }
+        };
+
+        async function getTeamInfo() {
+            void syncTeamMatches();
+            syncInterval = window.setInterval(() => {
+                void syncTeamMatches();
+            }, 60 * 1000);
 
             try {
                 const { data, error } = await supabase.functions.invoke(
@@ -198,6 +202,7 @@ const Team = () => {
 
         return () => {
             active = false;
+            if (syncInterval) window.clearInterval(syncInterval);
         };
     }, [faceitId, teamId]);
 
@@ -370,37 +375,49 @@ const Team = () => {
                         <p className="px-4 py-5 text-sm text-gray-500">Brak dostępnych meczów drużyny.</p>
                     ) : (
                         <div className="space-y-1">
-                            {matches.map((match) => (
-                                <Link
-                                    to="/match"
-                                    state={{ id: match.id }}
-                                    key={match.id}
-                                    className="flex min-w-0 flex-col gap-2 px-4 py-3 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div className="min-w-0">
-                                        <p className="truncate text-xs font-medium text-gray-500">
-                                            {match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz")}
-                                        </p>
-                                        <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
-                                            <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
-                                            <span className={`shrink-0 text-xs font-bold tabular-nums ${match.finished ? "text-white" : "text-red-400"}`}>
-                                                {match.finished
-                                                    ? `${match.team_1_score ?? "—"} : ${match.team_2_score ?? "—"}`
-                                                    : "VS"}
-                                            </span>
-                                            <span className="min-w-0 truncate">{match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}</span>
+                            {matches.map((match) => {
+                                const hasLiveScore = !match.finished &&
+                                    (match.team_1_score != null || match.team_2_score != null);
+
+                                return (
+                                    <Link
+                                        to="/match"
+                                        state={{ id: match.id }}
+                                        key={match.id}
+                                        className="flex min-w-0 flex-col gap-2 px-4 py-3 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="truncate text-xs font-medium text-gray-500">
+                                                {match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz")}
+                                            </p>
+                                            <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
+                                                <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
+                                                <span className={`shrink-0 text-xs font-bold tabular-nums text-gray-400`}>
+                                                    {match.finished || hasLiveScore
+                                                        ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
+                                                        : "VS"}
+                                                </span>
+                                                <span className="min-w-0 truncate">{match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <time className="shrink-0 text-xs text-gray-500">
-                                        {match.time
-                                            ? new Date(match.time).toLocaleString("pl-PL", {
-                                                dateStyle: "medium",
-                                                timeStyle: "short",
-                                            })
-                                            : "Termin do ustalenia"}
-                                    </time>
-                                </Link>
-                            ))}
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            {hasLiveScore && (
+                                                <span className="text-xs font-bold uppercase tracking-wide text-red-500">
+                                                    LIVE
+                                                </span>
+                                            )}
+                                            <time className="text-xs text-gray-500">
+                                                {match.time
+                                                    ? new Date(match.time).toLocaleString("pl-PL", {
+                                                        dateStyle: "medium",
+                                                        timeStyle: "short",
+                                                    })
+                                                    : "Termin do ustalenia"}
+                                            </time>
+                                        </div>
+                                    </Link>
+                                );
+                            })}
                         </div>
                     )}
                 </section>

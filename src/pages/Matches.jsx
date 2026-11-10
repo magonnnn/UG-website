@@ -14,6 +14,11 @@ const Matches = () => {
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
+        let active = true;
+        let syncInProgress = false;
+        let faceitTeams = [];
+        let syncInterval;
+
         const loadMatches = async () => {
             setLoading(true);
             const [matchesResult, teamsResult] = await Promise.all([
@@ -34,9 +39,11 @@ const Matches = () => {
                     .order("time", { ascending: false }),
                 supabase
                     .from("teams")
-                    .select("id, name")
+                    .select("id, name, faceit_id")
                     .order("name", { ascending: true }),
             ]);
+
+            if (!active) return;
 
             if (matchesResult.error || teamsResult.error) {
                 const loadError = matchesResult.error ?? teamsResult.error;
@@ -48,25 +55,111 @@ const Matches = () => {
 
             setMatches(matchesResult.data ?? []);
             setTeams(teamsResult.data ?? []);
+            faceitTeams = (teamsResult.data ?? []).filter((team) => team.faceit_id);
             setError(null);
             setLoading(false);
+
+            if (faceitTeams.length === 0) return;
+
+            const syncFaceitResults = async () => {
+                if (!active || syncInProgress || document.hidden) return;
+                syncInProgress = true;
+
+                const results = await Promise.all(faceitTeams.map(async (team) => {
+                    try {
+                        const { data, error: syncError } = await supabase.functions.invoke(
+                            "faceit-team-league",
+                            {
+                                body: {
+                                    action: "sync-fixtures",
+                                    faceitId: team.faceit_id,
+                                    teamId: String(team.id),
+                                },
+                            }
+                        );
+
+                        if (syncError) throw syncError;
+                        if (data?.error) throw new Error(data.error);
+                        return true;
+                    } catch (syncError) {
+                        console.error(`FACEIT result sync failed for ${team.name}:`, syncError);
+                        return false;
+                    }
+                }));
+
+                syncInProgress = false;
+                if (!active || !results.some(Boolean)) return;
+
+                const { data, error: refreshError } = await supabase
+                    .from("matches")
+                    .select(`
+                        id,
+                        league:tournaments!matches_league_fkey(name),
+                        team_1:teams!matches_team_1_id_fkey(id, name, logo),
+                        team_2:teams!matches_team_2_id_fkey(id, name, logo),
+                        team_2_name,
+                        faceit_match_id,
+                        time,
+                        team_1_score,
+                        team_2_score,
+                        finished
+                    `)
+                    .order("time", { ascending: false });
+
+                if (!active) return;
+
+                if (refreshError) {
+                    console.error("Error refreshing matches after FACEIT sync:", refreshError.message);
+                    return;
+                }
+
+                setMatches(data ?? []);
+            };
+
+            void syncFaceitResults();
+            syncInterval = window.setInterval(() => {
+                void syncFaceitResults();
+            }, 60 * 1000);
         }
 
-        loadMatches();
+        void loadMatches();
+
+        return () => {
+            active = false;
+            if (syncInterval) window.clearInterval(syncInterval);
+        };
     }, []);
 
     const getLogoUrl = (logo) =>
         logo ? supabase.storage.from("logos").getPublicUrl(logo).data.publicUrl : null;
 
-    const formatDate = (date) => {
-        if (!date) return "Data nieznana";
+    const getMatchDay = (date) => {
+        if (!date) return { key: "unknown", label: "Data nieznana" };
+        const parsedDate = new Date(date);
+        if (Number.isNaN(parsedDate.getTime())) {
+            return { key: "unknown", label: "Data nieznana" };
+        }
+
+        return {
+            key: `${parsedDate.getFullYear()}-${parsedDate.getMonth()}-${parsedDate.getDate()}`,
+            label: parsedDate.toLocaleDateString("pl-PL", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+            }),
+        };
+    };
+
+    const formatTime = (date) => {
+        if (!date) return "--:--";
 
         const parsedDate = new Date(date);
         return Number.isNaN(parsedDate.getTime())
-            ? "Data nieznana"
-            : parsedDate.toLocaleString("pl-PL", {
-                dateStyle: "medium",
-                timeStyle: "short",
+            ? "--:--"
+            : parsedDate.toLocaleTimeString("pl-PL", {
+                hour: "2-digit",
+                minute: "2-digit",
             });
     };
 
@@ -87,17 +180,50 @@ const Matches = () => {
     const pageMatches = orderedMatches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
     const pageUpcomingMatches = pageMatches.filter((match) => !match.finished);
     const pageFinishedMatches = pageMatches.filter((match) => match.finished);
+    const liveMatches = pageUpcomingMatches.filter((match) =>
+        match.team_1_score != null || match.team_2_score != null
+    );
+    const scheduledMatches = pageUpcomingMatches.filter((match) =>
+        match.team_1_score == null && match.team_2_score == null
+    );
+
+    const renderGroupedMatches = (matchList) => {
+        const groups = [];
+
+        matchList.forEach((match) => {
+            const day = getMatchDay(match.time);
+            let group = groups[groups.length - 1];
+
+            if (!group || group.key !== day.key) {
+                group = { ...day, matches: [] };
+                groups.push(group);
+            }
+
+            group.matches.push(match);
+        });
+
+        return groups.map((group) => (
+            <section key={group.key}>
+                <h3 className="border-b border-white/10 px-4 py-3 text-sm font-bold capitalize text-white">
+                    {group.label}
+                </h3>
+                <ul>{group.matches.map(renderMatch)}</ul>
+            </section>
+        ));
+    };
 
     const renderMatch = (match, index) => {
         const team1Logo = getLogoUrl(match.team_1?.logo);
         const team2Logo = getLogoUrl(match.team_2?.logo);
+        const hasLiveScore = !match.finished &&
+            (match.team_1_score != null || match.team_2_score != null);
 
         return (
             <li key={match.id ?? `${match.team_1_id}-${match.team_2_id}-${index}`}>
                 <Link
                     to="/match"
                     state={{ id: match.id }}
-                    className="flex min-w-0 items-center gap-2 px-4 py-4 transition-colors border border-white/10 transition-colors hover:border-white/20 my-4 hover:bg-white/[0.03] sm:gap-4 sm:px-6"
+                    className="flex min-w-0 items-center gap-2 px-4 py-4 transition-colors border border-white/10 hover:border-white/20 my-4 hover:bg-white/[0.03] sm:gap-4 sm:px-6"
                 >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-black/30">
                         {team1Logo ? (
@@ -109,11 +235,14 @@ const Matches = () => {
                     <span className="min-w-0 flex-1 truncate text-right text-sm font-semibold text-white">
                         {match.team_1?.name ?? "Bez drużyny"}
                     </span>
-                    <span className={`shrink-0 text-sm font-bold tabular-nums ${match.finished ? "text-white" : "text-gray-500"}`}>
-                        {match.finished
-                            ? `${match.team_1_score ?? "—"} : ${match.team_2_score ?? "—"}`
-                            : "vs"}
-                    </span>
+                    <div className="flex flex-col items-center gap-1">
+                        <p className="text-xs text-red-500">{hasLiveScore ? "LIVE" : ""}</p>
+                        <span className={`shrink-0 text-sm font-bold tabular-nums ${match.finished ? "text-white" : "text-gray-500"}`}>
+                            {match.finished || hasLiveScore
+                                ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
+                                : "vs"}
+                        </span>
+                    </div>
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
                         {match.team_2?.name ?? match.team_2_name ?? "Bez drużyny"}
                     </span>
@@ -124,12 +253,12 @@ const Matches = () => {
                     ) : (
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-black/30 text-xs text-gray-500">—</span>
                     )}
-                    <time className="hidden w-28 shrink-0 text-right text-xs text-gray-500 sm:block">
-                        {formatDate(match.time)}
+                    <time dateTime={match.time} className="hidden w-16 shrink-0 text-right text-xs text-gray-500 sm:block">
+                        {formatTime(match.time)}
                     </time>
                 </Link>
-                <time className="block px-4 pb-3 text-right text-xs text-gray-500 sm:hidden">
-                    {formatDate(match.time)}
+                <time dateTime={match.time} className="block px-4 pb-3 text-right text-xs text-gray-500 sm:hidden">
+                    {formatTime(match.time)}
                 </time>
             </li>
         );
@@ -175,12 +304,20 @@ const Matches = () => {
                 </p>
             ) : (
                 <div className="space-y-8">
-                    {pageUpcomingMatches.length > 0 && (
+                    {liveMatches.length > 0 && (
+                        <section>
+                            <h2 className="border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                                MECZE LIVE
+                            </h2>
+                            {renderGroupedMatches(liveMatches, true)}
+                        </section>
+                    )}
+                    {scheduledMatches.length > 0 && (
                         <section>
                             <h2 className="border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                                 Nadchodzące mecze
                             </h2>
-                            <ul>{pageUpcomingMatches.map(renderMatch)}</ul>
+                            {renderGroupedMatches(scheduledMatches)}
                         </section>
                     )}
                     {pageFinishedMatches.length > 0 && (
@@ -188,7 +325,7 @@ const Matches = () => {
                             <h2 className="border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                                 Zakończone mecze
                             </h2>
-                            <ul>{pageFinishedMatches.map(renderMatch)}</ul>
+                            {renderGroupedMatches(pageFinishedMatches)}
                         </section>
                     )}
                 </div>

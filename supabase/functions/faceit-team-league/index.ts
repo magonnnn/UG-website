@@ -14,7 +14,8 @@ const FIXTURE_PAGE_SIZE = 40;
 const MAX_FIXTURE_PAGES = 5;
 const FACEIT_MAX_RETRIES = 3;
 const UNKNOWN_NAME_RETRY_INTERVAL_MS = 60 * 60 * 1000;
-const RESULTS_SYNC_VERSION = 2;
+const RESULTS_SYNC_INTERVAL_MS = 60 * 1000;
+const RESULTS_SYNC_VERSION = 3;
 
 class FaceitRequestError extends Error {
   status: number;
@@ -39,6 +40,7 @@ type FaceitFaction = {
 
 type FaceitScheduledMatch = {
   id?: string;
+  match_id?: string;
   status?: string;
   scheduled_time?: string | number;
   started_at?: string | number;
@@ -46,6 +48,10 @@ type FaceitScheduledMatch = {
   finished_at?: string | number;
   finishedAt?: string | number;
   factions?: FaceitFaction[];
+  teams?: Record<string, {
+    faction_id?: string;
+    name?: string;
+  }>;
   results?: {
     score?: Record<string, string | number>;
     factions?: Record<string, { score?: string | number }>;
@@ -53,6 +59,9 @@ type FaceitScheduledMatch = {
     factions?: Record<string, { score?: string | number }>;
   }>;
   detailedResults?: Array<{
+    factions?: Record<string, { score?: string | number }>;
+  }>;
+  detailed_results?: Array<{
     factions?: Record<string, { score?: string | number }>;
   }>;
 };
@@ -262,6 +271,55 @@ async function fetchFaceitJson(url: string) {
   throw new Error("FACEIT request retry loop exited unexpectedly");
 }
 
+async function fetchFaceitDataApiJson(url: string, apiKey: string) {
+  for (let attempt = 0; attempt <= FACEIT_MAX_RETRIES; attempt += 1) {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+
+    if (response.ok) return response.json();
+
+    if (response.status !== 429 && response.status < 500) {
+      throw new FaceitRequestError(response.status);
+    }
+
+    if (attempt === FACEIT_MAX_RETRIES) {
+      throw new FaceitRequestError(response.status);
+    }
+
+    const retryAfter = Number(response.headers.get("Retry-After"));
+    const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? Math.min(retryAfter * 1000, 10_000)
+      : Math.min(1000 * 2 ** attempt, 8000);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  throw new Error("FACEIT Data API request retry loop exited unexpectedly");
+}
+
+function getDataApiMatchScore(
+  match: FaceitScheduledMatch,
+  factionKey: string,
+  factionId: string | undefined,
+): number | null {
+  const results = Array.isArray(match.results) ? undefined : match.results;
+  const score = results?.score?.[factionKey] ??
+    (factionId ? results?.score?.[factionId] : undefined) ??
+    match.detailed_results?.[0]?.factions?.[factionKey]?.score ??
+    (factionId
+      ? match.detailed_results?.[0]?.factions?.[factionId]?.score
+      : undefined);
+
+  return parseScore(score);
+}
+
+function normalizeTeamName(name: string): string {
+  return name.trim().toLocaleLowerCase();
+}
+
 function getTeamName(value: unknown): string | null {
   if (typeof value !== "object" || value === null) return null;
 
@@ -318,6 +376,7 @@ async function syncUpcomingFixtures(
   teamId: string,
   faceitId: string,
   profile: unknown,
+  apiKey: string,
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -332,7 +391,7 @@ async function syncUpcomingFixtures(
   const { data: team, error: teamError } = await supabase
     .from("teams")
     .select(
-      "id, faceit_id, esea_fixtures_synced_at, esea_results_synced_at, esea_results_sync_version",
+      "id, name, faceit_id, esea_fixtures_synced_at, esea_results_synced_at, esea_results_sync_version",
     )
     .eq("id", teamId)
     .maybeSingle();
@@ -368,7 +427,7 @@ async function syncUpcomingFixtures(
   const resultsSyncIsFresh =
     team.esea_results_sync_version >= RESULTS_SYNC_VERSION &&
     Number.isFinite(lastResultsSyncedAt) &&
-    Date.now() - lastResultsSyncedAt < FIXTURE_SYNC_INTERVAL_MS;
+    Date.now() - lastResultsSyncedAt < RESULTS_SYNC_INTERVAL_MS;
   const shouldSyncFixtures = !fixtureSyncIsFresh;
   const shouldSyncResults = !resultsSyncIsFresh;
 
@@ -388,10 +447,14 @@ async function syncUpcomingFixtures(
     .not("faceit_id", "is", null);
   if (teamsResult.error) throw teamsResult.error;
 
+  const allTeams = teamsResult.data ?? [];
   const knownTeams = new Map(
-    (teamsResult.data ?? [])
+    allTeams
       .filter((entry) => entry.faceit_id)
-      .map((entry) => [entry.faceit_id, entry]),
+      .map((entry) => [entry.faceit_id, entry] as const),
+  );
+  const knownTeamsByName = new Map(
+    allTeams.map((entry) => [normalizeTeamName(entry.name), entry] as const),
   );
   const fixtures = new Map<string, {
     faceit_match_id: string;
@@ -500,20 +563,91 @@ async function syncUpcomingFixtures(
           }
 
           const existingFixture = fixtures.get(matchId);
+          const team1Score = ownScore ?? existingFixture?.team_1_score ?? null;
+          const team2Score = opponentScore ?? existingFixture?.team_2_score ?? null;
           fixtures.set(matchId, {
             faceit_match_id: matchId,
             team_1_id: team.id,
             team_2_id: knownOpponent?.id ?? null,
             team_2_name: opponentName ?? "Nieznana drużyna",
             time: matchTime,
-            team_1_score: ownScore,
-            team_2_score: opponentScore,
-            finished: isFinished || existingFixture?.finished === true,
+            team_1_score: team1Score,
+            team_2_score: team2Score,
+            finished: (isFinished || existingFixture?.finished === true) &&
+              team1Score !== null && team2Score !== null,
             league: null,
           });
         }
 
         if (matches.length < FIXTURE_PAGE_SIZE) break;
+      }
+    }
+
+    if (shouldSyncResults) {
+      for (let page = 0; page < MAX_FIXTURE_PAGES; page += 1) {
+        const params = new URLSearchParams({
+          type: "ongoing",
+          offset: String(page * 100),
+          limit: "100",
+        });
+        const data = await fetchFaceitDataApiJson(
+          `https://open.faceit.com/data/v4/championships/${encodeURIComponent(championshipId)}/matches?${params}`,
+          apiKey,
+        );
+        const ongoingMatches = getMatches(data);
+
+        for (const match of ongoingMatches) {
+          const matchTeams = Object.entries(match.teams ?? {});
+          const ownFaction = matchTeams.find(([, faction]) =>
+            faction.faction_id === faceitId ||
+            (faction.name && normalizeTeamName(faction.name) ===
+              normalizeTeamName(team.name))
+          );
+          const opponent = matchTeams.find(([key]) => key !== ownFaction?.[0]);
+          const matchTime = parseScheduledTime(
+            match.started_at ?? match.scheduled_at,
+          );
+
+          if (!match.match_id || !ownFaction || !opponent || !matchTime) {
+            continue;
+          }
+
+          const [ownFactionKey, ownFactionData] = ownFaction;
+          const [opponentFactionKey, opponentFactionData] = opponent;
+          const ownScore = getDataApiMatchScore(
+            match,
+            ownFactionKey,
+            ownFactionData.faction_id,
+          );
+          const opponentScore = getDataApiMatchScore(
+            match,
+            opponentFactionKey,
+            opponentFactionData.faction_id,
+          );
+          const opponentTeam = opponentFactionData.faction_id
+            ? knownTeams.get(opponentFactionData.faction_id)
+            : opponentFactionData.name
+              ? knownTeamsByName.get(normalizeTeamName(opponentFactionData.name))
+              : null;
+          const existingFixture = fixtures.get(match.match_id);
+
+          fixtures.set(match.match_id, {
+            faceit_match_id: match.match_id,
+            team_1_id: team.id,
+            team_2_id: opponentTeam?.id ?? null,
+            team_2_name: opponentFactionData.name?.trim() ||
+              opponentTeam?.name ||
+              existingFixture?.team_2_name ||
+              "Nieznana drużyna",
+            time: matchTime,
+            team_1_score: ownScore ?? existingFixture?.team_1_score ?? null,
+            team_2_score: opponentScore ?? existingFixture?.team_2_score ?? null,
+            finished: existingFixture?.finished ?? false,
+            league: null,
+          });
+        }
+
+        if (ongoingMatches.length < 100) break;
       }
     }
   }
@@ -526,15 +660,6 @@ async function syncUpcomingFixtures(
       .upsert(fixtureRows, { onConflict: "faceit_match_id" });
     if (upsertError) throw upsertError;
   }
-
-  const { error: overdueFixturesError } = await supabase
-    .from("matches")
-    .update({ finished: true })
-    .eq("team_1_id", team.id)
-    .eq("finished", false)
-    .not("faceit_match_id", "is", null)
-    .lt("time", new Date(now).toISOString());
-  if (overdueFixturesError) throw overdueFixturesError;
 
   const syncTimestamps: {
     esea_fixtures_synced_at?: string;
@@ -647,7 +772,12 @@ serve(async (req) => {
     }
 
     if (action === "sync-fixtures") {
-      const fixtureSync = await syncUpcomingFixtures(teamId, faceitId, profile);
+      const fixtureSync = await syncUpcomingFixtures(
+        teamId,
+        faceitId,
+        profile,
+        apiKey,
+      );
       return Response.json(
         { fixture_sync: fixtureSync },
         { headers: corsHeaders },

@@ -1,7 +1,7 @@
 const PartnerCard = ({ partner, compact = false }) => (
     <a href={partner.href}>
         <article
-            className={`relative isolate flex flex-col justify-between overflow-hidden hover:scale-[0.98] bg-cover hover:bg-black/20 transition-all hover:cursor-pointer border border-white/10 transition-colors hover:border-white/20 bg-center ${compact ? "min-h-28 p-4" : "min-h-[280px] p-5 sm:min-h-[340px] sm:p-6"
+            className={`relative isolate flex flex-col justify-between overflow-hidden hover:scale-[0.98] bg-cover hover:bg-black/20 transition-all hover:cursor-pointer border border-white/10 hover:border-white/20 bg-center ${compact ? "min-h-28 p-4" : "min-h-[280px] p-5 sm:min-h-[340px] sm:p-6"
                 }`}
             style={{ backgroundImage: `url("${partner.logo}")` }}
         >
