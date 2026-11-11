@@ -12,6 +12,7 @@ const Match = () => {
 
     useEffect(() => {
         let active = true;
+        let forceNextSync = true;
         let liveSyncInterval;
 
         const fetchMatch = async () => {
@@ -88,6 +89,8 @@ const Match = () => {
                 return;
             }
 
+            const forceRefresh = forceNextSync;
+            forceNextSync = false;
             const { data, error: syncError } = await supabase.functions.invoke(
                 "faceit-team-league",
                 {
@@ -95,6 +98,7 @@ const Match = () => {
                         action: "sync-fixtures",
                         faceitId: currentMatch.team_1.faceit_id,
                         teamId: String(currentMatch.team_1.id),
+                        forceRefresh,
                     },
                 }
             );
@@ -113,14 +117,19 @@ const Match = () => {
             if (!active || !result.data) return;
 
             setMatch(result.data);
-            if (result.data.finished && liveSyncInterval) {
+            if (
+                result.data.finished &&
+                result.data.team_1_score != null &&
+                result.data.team_2_score != null &&
+                liveSyncInterval
+            ) {
                 window.clearInterval(liveSyncInterval);
             }
         };
 
         const initializeMatch = async () => {
             const initialMatch = await loadMatch();
-            if (!active || !initialMatch?.faceit_match_id || initialMatch.finished) return;
+            if (!active || !initialMatch?.faceit_match_id) return;
 
             if (initialMatch.team_1?.faceit_id) {
                 void syncLiveMatch(initialMatch);

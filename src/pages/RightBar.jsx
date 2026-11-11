@@ -34,6 +34,7 @@ const RightBar = () => {
     useEffect(() => {
         let active = true;
         let refreshInProgress = false;
+        let forceNextSync = true;
         let syncInterval;
 
         const queryUpcomingMatches = async () => {
@@ -91,6 +92,8 @@ const RightBar = () => {
         const refreshMatches = async () => {
             if (!active || refreshInProgress || document.hidden) return;
             refreshInProgress = true;
+            const forceRefresh = forceNextSync;
+            forceNextSync = false;
 
             const data = await queryUpcomingMatches();
             if (!active || !data) {
@@ -108,7 +111,7 @@ const RightBar = () => {
                     });
                 });
 
-            const syncResults = await Promise.all([...faceitTeams.values()].map(async (team) => {
+            await Promise.all([...faceitTeams.values()].map(async (team) => {
                 try {
                     const { data: syncData, error: syncError } = await supabase.functions.invoke(
                         "faceit-team-league",
@@ -117,6 +120,7 @@ const RightBar = () => {
                                 action: "sync-fixtures",
                                 faceitId: team.faceit_id,
                                 teamId: String(team.id),
+                                forceRefresh,
                             },
                         }
                     );
@@ -129,6 +133,7 @@ const RightBar = () => {
                         return false;
                     }
 
+                    await queryUpcomingMatches();
                     return true;
                 } catch (syncError) {
                     console.error(
@@ -138,10 +143,6 @@ const RightBar = () => {
                     return false;
                 }
             }));
-
-            if (active && syncResults.some(Boolean)) {
-                await queryUpcomingMatches();
-            }
 
             refreshInProgress = false;
         };

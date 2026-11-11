@@ -15,7 +15,7 @@ const MAX_FIXTURE_PAGES = 5;
 const FACEIT_MAX_RETRIES = 3;
 const UNKNOWN_NAME_RETRY_INTERVAL_MS = 60 * 60 * 1000;
 const RESULTS_SYNC_INTERVAL_MS = 60 * 1000;
-const RESULTS_SYNC_VERSION = 3;
+const RESULTS_SYNC_VERSION = 5;
 
 class FaceitRequestError extends Error {
   status: number;
@@ -47,6 +47,7 @@ type FaceitScheduledMatch = {
   startedAt?: string | number;
   finished_at?: string | number;
   finishedAt?: string | number;
+  scheduled_at?: string | number;
   factions?: FaceitFaction[];
   teams?: Record<string, {
     faction_id?: string;
@@ -56,6 +57,7 @@ type FaceitScheduledMatch = {
     score?: Record<string, string | number>;
     factions?: Record<string, { score?: string | number }>;
   } | Array<{
+    score?: Record<string, string | number>;
     factions?: Record<string, { score?: string | number }>;
   }>;
   detailedResults?: Array<{
@@ -117,7 +119,7 @@ function getFactionScore(
   const results = Array.isArray(match.results)
     ? match.results[0]
     : match.results;
-  const detailedResults = match.detailedResults?.[0];
+  const detailedResults = (match.detailedResults ?? match.detailed_results)?.[0];
   const factionIndex = match.factions?.indexOf(faction) ?? -1;
   const score = faction.score ??
     (faction.faction_id ? results?.score?.[faction.faction_id] : null) ??
@@ -176,8 +178,10 @@ function getMatchDetailScores(
   const results = Array.isArray(payload.results)
     ? payload.results[0]
     : payload.results;
-  const detailedResults = Array.isArray(payload.detailedResults)
-    ? payload.detailedResults[0]
+  const detailedResultPayload = payload.detailedResults ??
+    payload.detailed_results;
+  const detailedResults = Array.isArray(detailedResultPayload)
+    ? detailedResultPayload[0]
     : null;
   const resultRecord = typeof results === "object" && results !== null
     ? results as Record<string, unknown>
@@ -229,11 +233,16 @@ async function fetchMatchDetailScores(
 function parseScheduledTime(value: string | number | undefined): string | null {
   if (value == null) return null;
 
-  const date = new Date(
-    typeof value === "number" && value < 1_000_000_000_000
-      ? value * 1000
-      : value,
-  );
+  const numericValue = typeof value === "number"
+    ? value
+    : typeof value === "string" && /^\d+(?:\.\d+)?$/.test(value.trim())
+      ? Number(value)
+      : NaN;
+  const date = new Date(Number.isFinite(numericValue)
+    ? numericValue < 1_000_000_000_000
+      ? numericValue * 1000
+      : numericValue
+    : value);
 
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
@@ -305,12 +314,18 @@ function getDataApiMatchScore(
   factionKey: string,
   factionId: string | undefined,
 ): number | null {
-  const results = Array.isArray(match.results) ? undefined : match.results;
+  const results = Array.isArray(match.results)
+    ? match.results[0]
+    : match.results;
+  const detailedResults = (match.detailed_results ??
+    match.detailedResults)?.[0];
   const score = results?.score?.[factionKey] ??
     (factionId ? results?.score?.[factionId] : undefined) ??
-    match.detailed_results?.[0]?.factions?.[factionKey]?.score ??
+    results?.factions?.[factionKey]?.score ??
+    (factionId ? results?.factions?.[factionId]?.score : undefined) ??
+    detailedResults?.factions?.[factionKey]?.score ??
     (factionId
-      ? match.detailed_results?.[0]?.factions?.[factionId]?.score
+      ? detailedResults?.factions?.[factionId]?.score
       : undefined);
 
   return parseScore(score);
@@ -318,6 +333,34 @@ function getDataApiMatchScore(
 
 function normalizeTeamName(name: string): string {
   return name.trim().toLocaleLowerCase();
+}
+
+function getFixtureTeamOrder(
+  ownTeamId: string | number,
+  ownTeamName: string,
+  ownScore: number | null,
+  opponentTeam: { id: string | number; name: string } | undefined,
+  opponentName: string,
+  opponentScore: number | null,
+) {
+  const ownTeamIsFirst = !opponentTeam ||
+    String(ownTeamId) < String(opponentTeam.id);
+
+  return ownTeamIsFirst
+    ? {
+      team_1_id: ownTeamId,
+      team_2_id: opponentTeam?.id ?? null,
+      team_2_name: opponentName,
+      team_1_score: ownScore,
+      team_2_score: opponentScore,
+    }
+    : {
+      team_1_id: opponentTeam.id,
+      team_2_id: ownTeamId,
+      team_2_name: ownTeamName,
+      team_1_score: opponentScore,
+      team_2_score: ownScore,
+    };
 }
 
 function getTeamName(value: unknown): string | null {
@@ -377,6 +420,7 @@ async function syncUpcomingFixtures(
   faceitId: string,
   profile: unknown,
   apiKey: string,
+  forceRefresh: boolean,
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -428,8 +472,8 @@ async function syncUpcomingFixtures(
     team.esea_results_sync_version >= RESULTS_SYNC_VERSION &&
     Number.isFinite(lastResultsSyncedAt) &&
     Date.now() - lastResultsSyncedAt < RESULTS_SYNC_INTERVAL_MS;
-  const shouldSyncFixtures = !fixtureSyncIsFresh;
-  const shouldSyncResults = !resultsSyncIsFresh;
+  const shouldSyncFixtures = forceRefresh || !fixtureSyncIsFresh;
+  const shouldSyncResults = forceRefresh || !resultsSyncIsFresh;
 
   if (!shouldSyncFixtures && !shouldSyncResults) {
     return { status: "fresh", saved: 0 };
@@ -545,12 +589,15 @@ async function syncUpcomingFixtures(
             }
           }
 
-          const knownOpponent = knownTeams.get(opponent.premade_team_id);
           const factionName = opponent.name?.trim() ||
             opponent.nickname?.trim() ||
             opponent.team_name?.trim() ||
             opponent.team?.name?.trim() ||
             opponent.team?.nickname?.trim();
+          const knownOpponent = knownTeams.get(opponent.premade_team_id) ??
+            (factionName
+              ? knownTeamsByName.get(normalizeTeamName(factionName))
+              : undefined);
           let opponentName = factionName || knownOpponent?.name || null;
 
           if (!opponentName) {
@@ -563,18 +610,28 @@ async function syncUpcomingFixtures(
           }
 
           const existingFixture = fixtures.get(matchId);
-          const team1Score = ownScore ?? existingFixture?.team_1_score ?? null;
-          const team2Score = opponentScore ?? existingFixture?.team_2_score ?? null;
+          const orderedTeams = getFixtureTeamOrder(
+            team.id,
+            team.name,
+            ownScore,
+            knownOpponent,
+            opponentName ?? "Nieznana drużyna",
+            opponentScore,
+          );
+          const team1Score = orderedTeams.team_1_score ??
+            existingFixture?.team_1_score ?? null;
+          const team2Score = orderedTeams.team_2_score ??
+            existingFixture?.team_2_score ?? null;
           fixtures.set(matchId, {
             faceit_match_id: matchId,
-            team_1_id: team.id,
-            team_2_id: knownOpponent?.id ?? null,
-            team_2_name: opponentName ?? "Nieznana drużyna",
+            ...orderedTeams,
+            team_2_name: orderedTeams.team_2_name === "Nieznana drużyna"
+              ? existingFixture?.team_2_name ?? orderedTeams.team_2_name
+              : orderedTeams.team_2_name,
             time: matchTime,
             team_1_score: team1Score,
             team_2_score: team2Score,
-            finished: (isFinished || existingFixture?.finished === true) &&
-              team1Score !== null && team2Score !== null,
+            finished: isFinished || existingFixture?.finished === true,
             league: null,
           });
         }
@@ -624,24 +681,37 @@ async function syncUpcomingFixtures(
             opponentFactionKey,
             opponentFactionData.faction_id,
           );
-          const opponentTeam = opponentFactionData.faction_id
+          const opponentTeam = (opponentFactionData.faction_id
             ? knownTeams.get(opponentFactionData.faction_id)
-            : opponentFactionData.name
-              ? knownTeamsByName.get(normalizeTeamName(opponentFactionData.name))
-              : null;
+            : undefined) ??
+            (opponentFactionData.name
+              ? knownTeamsByName.get(
+                normalizeTeamName(opponentFactionData.name),
+              )
+              : undefined);
           const existingFixture = fixtures.get(match.match_id);
+          const orderedTeams = getFixtureTeamOrder(
+            team.id,
+            team.name,
+            ownScore,
+            opponentTeam ?? undefined,
+            opponentFactionData.name?.trim() ||
+              opponentTeam?.name ||
+              "Nieznana drużyna",
+            opponentScore,
+          );
 
           fixtures.set(match.match_id, {
             faceit_match_id: match.match_id,
-            team_1_id: team.id,
-            team_2_id: opponentTeam?.id ?? null,
-            team_2_name: opponentFactionData.name?.trim() ||
-              opponentTeam?.name ||
-              existingFixture?.team_2_name ||
-              "Nieznana drużyna",
+            ...orderedTeams,
+            team_2_name: orderedTeams.team_2_name === "Nieznana drużyna"
+              ? existingFixture?.team_2_name ?? orderedTeams.team_2_name
+              : orderedTeams.team_2_name,
             time: matchTime,
-            team_1_score: ownScore ?? existingFixture?.team_1_score ?? null,
-            team_2_score: opponentScore ?? existingFixture?.team_2_score ?? null,
+            team_1_score: orderedTeams.team_1_score ??
+              existingFixture?.team_1_score ?? null,
+            team_2_score: orderedTeams.team_2_score ??
+              existingFixture?.team_2_score ?? null,
             finished: existingFixture?.finished ?? false,
             league: null,
           });
@@ -655,9 +725,46 @@ async function syncUpcomingFixtures(
   const fixtureRows = [...fixtures.values()];
   const finishedRows = fixtureRows.filter((match) => match.finished).length;
   if (fixtureRows.length > 0) {
+    const existingMatchesResult = await supabase
+      .from("matches")
+      .select(
+        "faceit_match_id, team_1_id, team_2_id, team_2_name, team_1_score, team_2_score, finished",
+      )
+      .in("faceit_match_id", fixtureRows.map((match) => match.faceit_match_id));
+    if (existingMatchesResult.error) throw existingMatchesResult.error;
+
+    const existingMatches = new Map(
+      (existingMatchesResult.data ?? []).map((match) => [
+        match.faceit_match_id,
+        match,
+      ]),
+    );
+    const rowsToSave = fixtureRows.map((match) => {
+      const existing = existingMatches.get(match.faceit_match_id);
+      const existingIsReversed = existing &&
+        String(existing.team_1_id) !== String(match.team_1_id) &&
+        String(existing.team_2_id) === String(match.team_1_id);
+      const existingTeam1Score = existingIsReversed
+        ? existing.team_2_score
+        : existing?.team_1_score;
+      const existingTeam2Score = existingIsReversed
+        ? existing.team_1_score
+        : existing?.team_2_score;
+
+      return {
+        ...match,
+        team_2_id: match.team_2_id ?? existing?.team_2_id ?? null,
+        team_2_name: match.team_2_name === "Nieznana drużyna"
+          ? existing?.team_2_name ?? match.team_2_name
+          : match.team_2_name,
+        team_1_score: match.team_1_score ?? existingTeam1Score ?? null,
+        team_2_score: match.team_2_score ?? existingTeam2Score ?? null,
+        finished: match.finished || existing?.finished === true,
+      };
+    });
     const { error: upsertError } = await supabase
       .from("matches")
-      .upsert(fixtureRows, { onConflict: "faceit_match_id" });
+      .upsert(rowsToSave, { onConflict: "faceit_match_id" });
     if (upsertError) throw upsertError;
   }
 
@@ -713,6 +820,9 @@ serve(async (req) => {
       typeof body === "object" && body !== null && "teamId" in body
         ? body.teamId
         : null;
+    const forceRefresh =
+      typeof body === "object" && body !== null &&
+        "forceRefresh" in body && body.forceRefresh === true;
     const action =
       typeof body === "object" && body !== null && "action" in body
         ? body.action
@@ -777,6 +887,7 @@ serve(async (req) => {
         faceitId,
         profile,
         apiKey,
+        forceRefresh,
       );
       return Response.json(
         { fixture_sync: fixtureSync },

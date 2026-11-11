@@ -121,17 +121,21 @@ const Team = () => {
 
         let active = true;
         let syncInProgress = false;
+        let forceNextSync = true;
         let syncInterval;
 
         const syncTeamMatches = async () => {
             if (!active || syncInProgress || document.hidden) return;
             syncInProgress = true;
+            const forceRefresh = forceNextSync;
+            forceNextSync = false;
 
             const { data, error } = await supabase.functions.invoke("faceit-team-league", {
                 body: {
                     action: "sync-fixtures",
                     faceitId,
                     teamId: String(teamId),
+                    forceRefresh,
                 },
             });
 

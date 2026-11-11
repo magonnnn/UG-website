@@ -16,6 +16,7 @@ const Matches = () => {
     useEffect(() => {
         let active = true;
         let syncInProgress = false;
+        let forceNextSync = true;
         let faceitTeams = [];
         let syncInterval;
 
@@ -61,35 +62,7 @@ const Matches = () => {
 
             if (faceitTeams.length === 0) return;
 
-            const syncFaceitResults = async () => {
-                if (!active || syncInProgress || document.hidden) return;
-                syncInProgress = true;
-
-                const results = await Promise.all(faceitTeams.map(async (team) => {
-                    try {
-                        const { data, error: syncError } = await supabase.functions.invoke(
-                            "faceit-team-league",
-                            {
-                                body: {
-                                    action: "sync-fixtures",
-                                    faceitId: team.faceit_id,
-                                    teamId: String(team.id),
-                                },
-                            }
-                        );
-
-                        if (syncError) throw syncError;
-                        if (data?.error) throw new Error(data.error);
-                        return true;
-                    } catch (syncError) {
-                        console.error(`FACEIT result sync failed for ${team.name}:`, syncError);
-                        return false;
-                    }
-                }));
-
-                syncInProgress = false;
-                if (!active || !results.some(Boolean)) return;
-
+            const refreshMatches = async () => {
                 const { data, error: refreshError } = await supabase
                     .from("matches")
                     .select(`
@@ -114,6 +87,39 @@ const Matches = () => {
                 }
 
                 setMatches(data ?? []);
+            };
+
+            const syncFaceitResults = async () => {
+                if (!active || syncInProgress || document.hidden) return;
+                syncInProgress = true;
+                const forceRefresh = forceNextSync;
+                forceNextSync = false;
+
+                await Promise.all(faceitTeams.map(async (team) => {
+                    try {
+                        const { data, error: syncError } = await supabase.functions.invoke(
+                            "faceit-team-league",
+                            {
+                                body: {
+                                    action: "sync-fixtures",
+                                    faceitId: team.faceit_id,
+                                    teamId: String(team.id),
+                                    forceRefresh,
+                                },
+                            }
+                        );
+
+                        if (syncError) throw syncError;
+                        if (data?.error) throw new Error(data.error);
+                        await refreshMatches();
+                        return true;
+                    } catch (syncError) {
+                        console.error(`FACEIT result sync failed for ${team.name}:`, syncError);
+                        return false;
+                    }
+                }));
+
+                syncInProgress = false;
             };
 
             void syncFaceitResults();
