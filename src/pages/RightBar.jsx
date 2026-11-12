@@ -37,7 +37,7 @@ const RightBar = () => {
         let forceNextSync = true;
         let syncInterval;
 
-        const queryUpcomingMatches = async () => {
+        const queryTodayMatches = async () => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
@@ -72,7 +72,6 @@ const RightBar = () => {
                     `)
                 .gte("time", today.toISOString())
                 .lt("time", tomorrow.toISOString())
-                .or("finished.is.null,finished.eq.false")
                 .order("time", { ascending: true });
 
             if (!active) return null;
@@ -84,7 +83,12 @@ const RightBar = () => {
                 return null;
             }
 
-            setMatches(data ?? []);
+            setMatches(
+                (data ?? []).filter(
+                    (match) =>
+                        match.team_1_score != null || match.team_2_score != null
+                )
+            );
             setMatchesLoading(false);
             return data ?? [];
         }
@@ -95,7 +99,7 @@ const RightBar = () => {
             const forceRefresh = forceNextSync;
             forceNextSync = false;
 
-            const data = await queryUpcomingMatches();
+            const data = await queryTodayMatches();
             if (!active || !data) {
                 refreshInProgress = false;
                 return;
@@ -133,7 +137,7 @@ const RightBar = () => {
                         return false;
                     }
 
-                    await queryUpcomingMatches();
+                    await queryTodayMatches();
                     return true;
                 } catch (syncError) {
                     console.error(
@@ -171,14 +175,14 @@ const RightBar = () => {
 
     return (
         <aside className="min-w-0 space-y-4 p-3 sm:p-4">
-            <section className="overflow-hidden border border-border bg-bg">
-                <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+                <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
                     <img src={rankingIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     <Link to="/ranking" className="text-gray-400 transition-colors hover:text-white">
                         Ranking Podziemia
                     </Link>
                 </h2>
-                <div>
+                <div className="grid gap-2 p-2">
                     {teams.length === 0 ? (
                         <p className="px-4 py-4 text-sm text-gray-400">Brak drużyn w rankingu.</p>
                     ) : (
@@ -187,13 +191,13 @@ const RightBar = () => {
                                 to="/team"
                                 state={{ id: team.id }}
                                 key={team.id}
-                                className="flex min-w-0 items-center gap-3 px-3 py-3 hover:bg-white/[0.03]"
+                                className="flex min-w-0 items-center gap-3 border border-white/[0.07] bg-white/[0.025] px-3 py-3 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]"
                             >
                                 <span className="w-4 shrink-0 text-xs font-bold text-gray-500">{index + 1}</span>
                                 {team.logo ? (
                                     <img src={getLogoUrl(team.logo)} alt="" className="h-7 w-7 shrink-0 object-contain" />
                                 ) : (
-                                    <span className="h-7 w-7 shrink-0 rounded-full bg-white/5" />
+                                    <span className="h-7 w-7 shrink-0 rounded-full bg-white/[0.06]" />
                                 )}
                                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{team.name}</span>
                                 <span className="shrink-0 text-xs text-gray-500">{team.points ?? 0} pkt</span>
@@ -203,11 +207,11 @@ const RightBar = () => {
                 </div>
             </section>
 
-            <section className="overflow-hidden border border-border bg-bg">
-                <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+                <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
                     <img src={matchIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     <Link to="/matches" className="text-gray-400 transition-colors hover:text-white">
-                        Najbliższe mecze
+                        Wyniki dzisiejszych meczów
                     </Link>
                 </h2>
                 {matchesLoading ? (
@@ -217,13 +221,13 @@ const RightBar = () => {
                 ) : matches.length === 0 ? (
                     <p className="px-4 py-4 text-sm text-gray-400">Brak dzisiejszych meczów.</p>
                 ) : (
-                    <div>
+                    <div className="grid gap-2 p-2">
                         {matches.map((match) => (
                             <Link
                                 to="/match"
                                 state={{ id: match.id }}
                                 key={match.id}
-                                className="block px-3 py-3 hover:bg-white/[0.03]"
+                                className="block border border-white/[0.07] bg-white/[0.025] px-3 py-3 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]"
                             >
                                 <div className="flex items-center justify-between gap-2">
                                     <span className="min-w-0 truncate text-xs font-semibold text-gray-300">

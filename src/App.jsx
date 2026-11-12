@@ -20,6 +20,7 @@ import Matches from "./pages/Matches";
 import PrivacyPolicy from "./pages/DataInfo";
 import Tournaments from "./pages/Tournaments";
 import Announcements from "./pages/Announcements";
+import TopBar from "./components/TopBar";
 
 const ScrollToTop = () => {
   const { key } = useLocation();
@@ -46,6 +47,7 @@ const App = () => {
           </div>
 
           <main className="order-1 min-w-0 px-3 py-4 sm:px-5 sm:py-6 lg:order-2 lg:px-6 xl:px-8">
+            <TopBar />
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/article/:id" element={<Article />} />
