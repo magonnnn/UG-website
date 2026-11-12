@@ -34,7 +34,6 @@ const RightBar = () => {
     useEffect(() => {
         let active = true;
         let refreshInProgress = false;
-        let forceNextSync = true;
         let syncInterval;
 
         const queryTodayMatches = async () => {
@@ -96,58 +95,8 @@ const RightBar = () => {
         const refreshMatches = async () => {
             if (!active || refreshInProgress || document.hidden) return;
             refreshInProgress = true;
-            const forceRefresh = forceNextSync;
-            forceNextSync = false;
 
-            const data = await queryTodayMatches();
-            if (!active || !data) {
-                refreshInProgress = false;
-                return;
-            }
-
-            const faceitTeams = new Map();
-            data.filter((match) => match.faceit_match_id && !match.finished)
-                .forEach((match) => {
-                    [match.team_1, match.team_2].forEach((team) => {
-                        if (team?.faceit_id && team.id != null) {
-                            faceitTeams.set(String(team.id), team);
-                        }
-                    });
-                });
-
-            await Promise.all([...faceitTeams.values()].map(async (team) => {
-                try {
-                    const { data: syncData, error: syncError } = await supabase.functions.invoke(
-                        "faceit-team-league",
-                        {
-                            body: {
-                                action: "sync-fixtures",
-                                faceitId: team.faceit_id,
-                                teamId: String(team.id),
-                                forceRefresh,
-                            },
-                        }
-                    );
-
-                    if (syncError || syncData?.error) {
-                        console.error(
-                            `FACEIT rightbar match sync failed for ${team.name}:`,
-                            syncError ?? syncData.error
-                        );
-                        return false;
-                    }
-
-                    await queryTodayMatches();
-                    return true;
-                } catch (syncError) {
-                    console.error(
-                        `FACEIT rightbar match sync failed for ${team.name}:`,
-                        syncError
-                    );
-                    return false;
-                }
-            }));
-
+            await queryTodayMatches();
             refreshInProgress = false;
         };
 

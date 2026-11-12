@@ -310,7 +310,38 @@ const Player = () => {
                             </div>
                         )}
                     </dl>
+                    <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Historia drużyn
+                    </h2>
+                    {teamHistory.length > 0 ? (
+                        <div className="space-y-1">
+                            {teamHistory.map((team, index) => {
+                                const logoUrl = team.logo
+                                    ? supabase.storage.from("logos").getPublicUrl(team.logo).data.publicUrl
+                                    : null;
+
+                                return (
+                                    <Link
+                                        to="/team"
+                                        state={{ id: team.id }}
+                                        key={`${team.id}-${index}`}
+                                        className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                                    >
+                                        {logoUrl ? (
+                                            <img src={logoUrl} alt="" className="h-8 w-8 shrink-0 object-contain" />
+                                        ) : (
+                                            <span className="h-8 w-8 shrink-0 rounded-full bg-bg-light" />
+                                        )}
+                                        <span className="min-w-0 truncate text-sm font-medium text-white">{team.name}</span>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p className="px-4 py-5 text-sm text-gray-500">Brak historii drużyn.</p>
+                    )}
                 </section>
+
 
                 <div className="grid min-w-0 content-start gap-4">
                     <section className="min-w-0">
@@ -458,7 +489,7 @@ const Player = () => {
                                                 ))}
                                             </div>
                                             <p className="mt-3 text-xs text-gray-500">
-                                                Ostatnie 10: K / Ś / A — najedź na wynik, aby zobaczyć szczegóły.
+                                                Ostatnie 10: K / Ś / A - najedź na wynik, aby zobaczyć szczegóły.
                                             </p>
                                         </section>
                                     </div>
@@ -470,39 +501,6 @@ const Player = () => {
                                     ? "Nie udało się pobrać statystyk z ostatnich meczów."
                                     : "Brak dostępnych statystyk z ostatnich meczów."}
                             </p>
-                        )}
-                    </section>
-
-                    <section className="min-w-0">
-                        <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
-                            Historia drużyn
-                        </h2>
-                        {teamHistory.length > 0 ? (
-                            <div className="space-y-1">
-                                {teamHistory.map((team, index) => {
-                                    const logoUrl = team.logo
-                                        ? supabase.storage.from("logos").getPublicUrl(team.logo).data.publicUrl
-                                        : null;
-
-                                    return (
-                                        <Link
-                                            to="/team"
-                                            state={{ id: team.id }}
-                                            key={`${team.id}-${index}`}
-                                            className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
-                                        >
-                                            {logoUrl ? (
-                                                <img src={logoUrl} alt="" className="h-8 w-8 shrink-0 object-contain" />
-                                            ) : (
-                                                <span className="h-8 w-8 shrink-0 rounded-full bg-bg-light" />
-                                            )}
-                                            <span className="min-w-0 truncate text-sm font-medium text-white">{team.name}</span>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <p className="px-4 py-5 text-sm text-gray-500">Brak historii drużyn.</p>
                         )}
                     </section>
                 </div>
