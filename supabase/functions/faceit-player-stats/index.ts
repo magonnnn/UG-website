@@ -18,7 +18,7 @@ type FaceitProfile = {
 };
 
 type MatchHistory = {
-  items?: Array<{ match_id?: string }>;
+  items?: Array<{ match_id?: string; started_at?: number | string }>;
 };
 
 type PlayerMatchStats = {
@@ -99,13 +99,22 @@ serve(async (req) => {
     );
     const matches = history.items ?? [];
     const totals = { kills: 0, deaths: 0, assists: 0, headshots: 0, wins: 0 };
+    const matchHistory: Array<{
+      matchId: string;
+      startedAt: number | string | null;
+      kills: number;
+      deaths: number;
+      assists: number;
+      headshots: number;
+      won: boolean;
+    }> = [];
     let completedMatches = 0;
     let failedMatches = 0;
 
     for (let index = 0; index < matches.length; index += STATS_CONCURRENCY) {
       const batch = matches.slice(index, index + STATS_CONCURRENCY);
       const batchStats = await Promise.all(
-        batch.map(async ({ match_id }) => {
+        batch.map(async ({ match_id, started_at }) => {
           if (!match_id) {
             failedMatches += 1;
             return null;
@@ -126,7 +135,11 @@ serve(async (req) => {
               return null;
             }
 
-            return player.player_stats;
+            return {
+              matchId: match_id,
+              startedAt: started_at ?? null,
+              stats: player.player_stats,
+            };
           } catch (error) {
             failedMatches += 1;
             console.error(
@@ -138,15 +151,30 @@ serve(async (req) => {
         }),
       );
 
-      for (const stats of batchStats) {
-        if (!stats) continue;
+      for (const match of batchStats) {
+        if (!match) continue;
 
-        totals.kills += numericStat(stats, "Kills");
-        totals.deaths += numericStat(stats, "Deaths");
-        totals.assists += numericStat(stats, "Assists");
-        totals.headshots += numericStat(stats, "Headshots");
-        totals.wins += numericStat(stats, "Result") === 1 ? 1 : 0;
+        const kills = numericStat(match.stats, "Kills");
+        const deaths = numericStat(match.stats, "Deaths");
+        const assists = numericStat(match.stats, "Assists");
+        const headshots = numericStat(match.stats, "Headshots");
+        const won = numericStat(match.stats, "Result") === 1;
+
+        totals.kills += kills;
+        totals.deaths += deaths;
+        totals.assists += assists;
+        totals.headshots += headshots;
+        totals.wins += won ? 1 : 0;
         completedMatches += 1;
+        matchHistory.push({
+          matchId: match.matchId,
+          startedAt: match.startedAt,
+          kills,
+          deaths,
+          assists,
+          headshots,
+          won,
+        });
       }
     }
 
@@ -165,6 +193,7 @@ serve(async (req) => {
           killDeathRatio: ratio(totals.kills, totals.deaths),
           headshotPercentage: ratio(totals.headshots * 100, totals.kills),
           winPercentage: ratio(totals.wins * 100, completedMatches),
+          matchHistory,
         },
       },
       { headers: corsHeaders },

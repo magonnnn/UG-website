@@ -134,10 +134,10 @@ const LeftBar = () => {
 
     return (
         <aside className="min-w-0 space-y-4 p-3 sm:p-4">
-            <section className="overflow-hidden border border-border bg-bg">
+            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
                 <Link
                     to="/transfers"
-                    className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400 transition-colors hover:text-white"
+                    className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300 transition-colors hover:text-white"
                 >
                     <img src={squadIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     TRANSFERS
@@ -149,15 +149,15 @@ const LeftBar = () => {
                 ) : transfers.length === 0 ? (
                     <p className="px-4 py-5 text-sm text-gray-400">Brak ostatnich transferów.</p>
                 ) : (
-                    <div>
+                    <div className="grid gap-2 p-2">
                         {transfers.map((transfer, index) => (
                             <Link
                                 to="/player"
                                 state={{ id: transfer.player_id }}
                                 key={`${transfer.player_id}-${index}`}
-                                className="flex min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-white/[0.03]"
+                                className="flex min-w-0 items-center gap-3 border border-white/[0.07] bg-white/[0.025] px-3 py-3 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]"
                             >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-black/30">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-white/[0.04]">
                                     {getLogoUrl(transfer.from_team?.logo) ? (
                                         <img src={getLogoUrl(transfer.from_team.logo)} alt="" className="h-6 w-6 object-contain" />
                                     ) : (
@@ -175,7 +175,7 @@ const LeftBar = () => {
                                 {getLogoUrl(transfer.to_team?.logo) ? (
                                     <img src={getLogoUrl(transfer.to_team.logo)} alt="" className="h-7 w-7 shrink-0 object-contain" />
                                 ) : (
-                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-black/30 text-xs text-gray-500">—</span>
+                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-white/[0.04] text-xs text-gray-500">—</span>
                                 )}
                             </Link>
                         ))}
@@ -183,8 +183,8 @@ const LeftBar = () => {
                 )}
             </section>
 
-            <section className="overflow-hidden border border-border bg-bg">
-                <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+                <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
                     <img src={clockIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Nadchodzące turnieje
                 </h2>
@@ -195,7 +195,7 @@ const LeftBar = () => {
                 ) : upcomingTournaments.length === 0 ? (
                     <p className="px-4 py-5 text-sm text-gray-400">Brak nadchodzących turniejów.</p>
                 ) : (
-                    <div>
+                    <div className="grid gap-2 p-2">
                         {upcomingTournaments.map(({ tournament, date }) => {
                             const url = getTournamentUrl(tournament.link);
                             const content = (
@@ -217,12 +217,12 @@ const LeftBar = () => {
                                             href={url}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="block px-3 py-3 transition-colors hover:bg-white/[0.03]"
+                                            className="block border border-white/[0.07] bg-white/[0.025] px-3 py-3 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]"
                                         >
                                             {content}
                                         </a>
                                     ) : (
-                                        <div className="px-3 py-3">{content}</div>
+                                        <div className="border border-white/[0.07] bg-white/[0.025] px-3 py-3">{content}</div>
                                     )}
                                 </div>
                             );
@@ -230,14 +230,14 @@ const LeftBar = () => {
                     </div>
                 )}
             </section>
-            <section className="overflow-hidden border border-border bg-bg">
-                <h2 className="flex items-center gap-2 border-b border-border px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+                <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
                     <img src={partner} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     <Link to="/partners" className="text-gray-400 transition-colors hover:text-white">
                         Partnerzy
                     </Link>
                 </h2>
-                <div className="px-3 py-3">
+                <div className="grid gap-2 p-2">
                     {reducedPartners.map((partnerInfo) => (
                         <PartnerCard key={partnerInfo.name} partner={partnerInfo} compact />
                     ))}
