@@ -11,9 +11,10 @@ const TopBar = () => {
 
     useEffect(() => {
         let active = true;
+        let hasLoaded = false;
 
         const fetchMatches = async () => {
-            setLoading(true);
+            if (!hasLoaded) setLoading(true);
             setError("");
 
             try {
@@ -26,6 +27,7 @@ const TopBar = () => {
                         id,
                         time,
                         team_2_name,
+                        team_2_logo_url,
                         faceit_match_id,
                         team_1_score,
                         team_2_score,
@@ -63,14 +65,17 @@ const TopBar = () => {
                 console.error("Error loading top bar matches:", fetchError);
                 setError("Nie udało się załadować meczów.");
             } finally {
-                if (active) setLoading(false);
+                if (active) {
+                    hasLoaded = true;
+                    setLoading(false);
+                }
             }
         };
 
         void fetchMatches();
         const refreshInterval = window.setInterval(() => {
             void fetchMatches();
-        }, 60 * 1000);
+        }, 15 * 1000);
 
         return () => {
             active = false;
@@ -126,7 +131,7 @@ const TopBar = () => {
                         return (
                             <Link
                                 key={match.id}
-                                className="group min-w-0 border border-white/[0.07] bg-white/[0.025] px-3 py-3 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]"
+                                className={`group min-w-0 ${isLive ? "border border-red-800 bg-red-500/10" : "border border-white/[0.07] bg-white/[0.025]"} px-3 py-3 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]`}
                                 state={{ id: match.id }}
                                 to="/match"
                                 aria-label={`${team1Name} versus ${team2Name}, ${match.time ? new Date(match.time).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "godzina nieznana"}, ${leagueName}`}
@@ -138,12 +143,13 @@ const TopBar = () => {
                                             const score = index === 0
                                                 ? match.team_1_score
                                                 : match.team_2_score;
-                                            const logoUrl = getLogoUrl(team?.logo);
+                                            const logoUrl = getLogoUrl(team?.logo) ??
+                                                (index === 1 ? match.team_2_logo_url : null);
 
                                             return (
                                                 <div
                                                     key={team?.id ?? name}
-                                                    className="flex min-w-0 items-center gap-2"
+                                                    className="flex justify-center min-w-0 items-center gap-2"
                                                 >
                                                     {logoUrl ? (
                                                         <img
@@ -170,14 +176,14 @@ const TopBar = () => {
                                             );
                                         })}
                                     </div>
-                                    <div className="flex min-w-0 shrink-0 flex-col items-end gap-2 border-l border-white/[0.08] pl-3">
-                                        <time className="flex items-center gap-1.5 text-xs font-medium tabular-nums text-gray-300">
-                                            <img
-                                                src={clockIcon}
-                                                alt=""
-                                                aria-hidden="true"
-                                                className="h-3 w-3 invert opacity-50"
-                                            />
+                                    <div className="grid min-w-0 shrink-0 grid-cols-[12px_auto] grid-rows-2 items-center gap-x-1.5 gap-y-2 border-l border-white/[0.08] pl-3">
+                                        <img
+                                            src={clockIcon}
+                                            alt=""
+                                            aria-hidden="true"
+                                            className="h-3 w-3 invert opacity-50"
+                                        />
+                                        <time className="justify-self-end text-xs font-medium tabular-nums text-gray-300">
                                             {match.time
                                                 ? new Date(match.time).toLocaleTimeString("pl-PL", {
                                                     hour: "2-digit",
@@ -185,13 +191,15 @@ const TopBar = () => {
                                                 })
                                                 : "—"}
                                         </time>
-                                        <span className="flex max-w-24 items-center gap-1.5 text-xs text-gray-500">
-                                            {isLive && (
-                                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
-                                            )}
-                                            <span className="truncate" title={leagueName}>
-                                                {leagueName}
-                                            </span>
+                                        <span
+                                            className={`h-3 w-3 shrink-0 rounded-full ${isLive ? "bg-red-800 animate-pulse" : "opacity-0"}`}
+                                            aria-hidden="true"
+                                        />
+                                        <span
+                                            className="max-w-24 justify-self-end truncate text-right text-xs text-gray-500"
+                                            title={leagueName}
+                                        >
+                                            {leagueName}
                                         </span>
                                     </div>
                                 </div>

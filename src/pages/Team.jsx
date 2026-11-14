@@ -120,51 +120,7 @@ const Team = () => {
         }
 
         let active = true;
-        let syncInProgress = false;
-        let forceNextSync = true;
-        let syncInterval;
-
-        const syncTeamMatches = async () => {
-            if (!active || syncInProgress || document.hidden) return;
-            syncInProgress = true;
-            const forceRefresh = forceNextSync;
-            forceNextSync = false;
-
-            const { data, error } = await supabase.functions.invoke("faceit-team-league", {
-                body: {
-                    action: "sync-fixtures",
-                    faceitId,
-                    teamId: String(teamId),
-                    forceRefresh,
-                },
-            });
-
-            syncInProgress = false;
-            if (!active) return;
-
-            if (error || data?.error) {
-                console.error("ESEA fixture sync failed:", error ?? data.error);
-                return;
-            }
-
-            const matchesResult = await loadTeamMatches(teamId);
-            if (!active) return;
-
-            if (matchesResult.error) {
-                console.error("Error refreshing team matches:", matchesResult.error.message);
-                setMatchesError("Nie udało się załadować meczów drużyny.");
-            } else {
-                setMatches(matchesResult.data ?? []);
-                setMatchesError("");
-            }
-        };
-
         async function getTeamInfo() {
-            void syncTeamMatches();
-            syncInterval = window.setInterval(() => {
-                void syncTeamMatches();
-            }, 60 * 1000);
-
             try {
                 const { data, error } = await supabase.functions.invoke(
                     "faceit-team-league",
@@ -206,9 +162,36 @@ const Team = () => {
 
         return () => {
             active = false;
-            if (syncInterval) window.clearInterval(syncInterval);
         };
     }, [faceitId, teamId]);
+
+    useEffect(() => {
+        if (teamId == null) return;
+
+        let active = true;
+
+        const refreshTeamMatches = async () => {
+            const matchesResult = await loadTeamMatches(teamId);
+            if (!active) return;
+
+            if (matchesResult.error) {
+                console.error("Error refreshing team matches:", matchesResult.error.message);
+                setMatchesError("Nie udało się załadować meczów drużyny.");
+            } else {
+                setMatches(matchesResult.data ?? []);
+                setMatchesError("");
+            }
+        };
+
+        const refreshInterval = window.setInterval(() => {
+            void refreshTeamMatches();
+        }, 15 * 1000);
+
+        return () => {
+            active = false;
+            window.clearInterval(refreshInterval);
+        };
+    }, [teamId]);
 
     const currentFaceitTeam = faceitTeam && faceitTeam.faceitId === faceitId
         ? faceitTeam.data

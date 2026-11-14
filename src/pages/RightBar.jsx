@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient"
 import { Link } from "react-router-dom";
 import rankingIcon from "../assets/ranking.svg";
 import matchIcon from "../assets/match.svg";
+import clockIcon from "../assets/clock.svg";
 
 const RightBar = () => {
     const [teams, setTeams] = useState([]);
@@ -49,6 +50,7 @@ const RightBar = () => {
                     id,
                     time,
                     team_2_name,
+                    team_2_logo_url,
                     faceit_match_id,
                     team_1_score,
                     team_2_score,
@@ -71,6 +73,9 @@ const RightBar = () => {
                     `)
                 .gte("time", today.toISOString())
                 .lt("time", tomorrow.toISOString())
+                .eq("finished", true)
+                .not("team_1_score", "is", null)
+                .not("team_2_score", "is", null)
                 .order("time", { ascending: true });
 
             if (!active) return null;
@@ -85,7 +90,9 @@ const RightBar = () => {
             setMatches(
                 (data ?? []).filter(
                     (match) =>
-                        match.team_1_score != null || match.team_2_score != null
+                        match.finished &&
+                        match.team_1_score != null &&
+                        match.team_2_score != null
                 )
             );
             setMatchesLoading(false);
@@ -97,14 +104,9 @@ const RightBar = () => {
             if (!active || refreshInProgress || document.hidden) return;
 
             refreshInProgress = true;
-            const forceRefresh = forceNextSync;
-            forceNextSync = false;
 
             try {
                 await queryTodayMatches();
-                if (!active) return;
-
-                await queryUpcomingMatches();
                 if (!active) return;
 
                 const { data: faceitTeams, error: teamsError } = await supabase
@@ -133,7 +135,6 @@ const RightBar = () => {
                                                 action: "sync-fixtures",
                                                 faceitId: team.faceit_id,
                                                 teamId: String(team.id),
-                                                forceRefresh,
                                             },
                                         }
                                     );
@@ -155,7 +156,6 @@ const RightBar = () => {
 
                 if (active) {
                     await queryTodayMatches();
-                    await queryUpcomingMatches();
                 }
             } finally {
                 refreshInProgress = false;
@@ -166,7 +166,7 @@ const RightBar = () => {
         void refreshMatches();
         syncInterval = window.setInterval(() => {
             void refreshMatches();
-        }, 60 * 1000);
+        }, 15 * 1000);
 
         return () => {
             active = false;
@@ -234,41 +234,85 @@ const RightBar = () => {
                     <p className="px-4 py-4 text-sm text-gray-400">Brak dzisiejszych meczów.</p>
                 ) : (
                     <div className="grid gap-2 p-2">
-                        {matches.map((match) => (
-                            <Link
-                                to="/match"
-                                state={{ id: match.id }}
-                                key={match.id}
-                                className="block border border-white/[0.07] bg-white/[0.025] px-3 py-3 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]"
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="min-w-0 truncate text-xs font-semibold text-gray-300">
-                                        {match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz")}
-                                    </span>
-                                    <time className="shrink-0 text-[11px] text-gray-500">
-                                        {match.time
-                                            ? new Date(match.time).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })
-                                            : "—"}
-                                    </time>
-                                </div>
-                                <div className="mt-2 flex items-center justify-between gap-2 text-sm text-white">
-                                    <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
-                                    {match.team_1_score != null || match.team_2_score != null ? (
-                                        <div className="flex shrink-0 flex-col items-center gap-1 whitespace-nowrap">
-                                            {!match.finished && (
-                                                <span className="text-xs text-red-500">LIVE</span>
-                                            )}
-                                            <span className="whitespace-nowrap text-sm font-bold tabular-nums text-gray-400">
-                                                {match.team_1_score ?? "-"}:{match.team_2_score ?? "-"}
+                        {matches.map((match) => {
+                            const team1Name = match.team_1?.name ?? "Drużyna 1";
+                            const team2Name =
+                                match.team_2?.name ?? match.team_2_name ?? "Drużyna 2";
+                            const leagueName =
+                                match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz");
+
+                            return (
+                                <Link
+                                    to="/match"
+                                    state={{ id: match.id }}
+                                    key={match.id}
+                                    className="group min-w-0 border border-white/[0.07] bg-white/[0.025] px-3 py-3 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]"
+                                    aria-label={`${team1Name} versus ${team2Name}, ${match.time ? new Date(match.time).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "godzina nieznana"}, ${leagueName}`}
+                                >
+                                    <div className="flex min-w-0 items-center justify-between gap-3">
+                                        <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm text-white">
+                                            {[match.team_1, match.team_2].map((team, index) => {
+                                                const name = index === 0 ? team1Name : team2Name;
+                                                const score = index === 0
+                                                    ? match.team_1_score
+                                                    : match.team_2_score;
+                                                const logoUrl = getLogoUrl(team?.logo) ??
+                                                    (index === 1 ? match.team_2_logo_url : null);
+
+                                                return (
+                                                    <div
+                                                        key={team?.id ?? name}
+                                                        className="flex min-w-0 items-center gap-2"
+                                                    >
+                                                        {logoUrl ? (
+                                                            <img
+                                                                src={logoUrl}
+                                                                alt=""
+                                                                aria-hidden="true"
+                                                                className="h-5 w-5 shrink-0 object-contain"
+                                                            />
+                                                        ) : (
+                                                            <span
+                                                                className="h-5 w-5 shrink-0 rounded-full bg-white/[0.06]"
+                                                                aria-hidden="true"
+                                                            />
+                                                        )}
+                                                        <span className="min-w-0 flex-1 truncate font-medium">
+                                                            {name}
+                                                        </span>
+                                                        <span className="shrink-0 font-semibold tabular-nums text-gray-300">
+                                                            {score}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="flex min-w-0 shrink-0 flex-col items-end gap-2 border-l border-white/[0.08] pl-3">
+                                            <time className="flex items-center gap-1.5 text-xs font-medium tabular-nums text-gray-300">
+                                                <img
+                                                    src={clockIcon}
+                                                    alt=""
+                                                    aria-hidden="true"
+                                                    className="h-3 w-3 invert opacity-50"
+                                                />
+                                                {match.time
+                                                    ? new Date(match.time).toLocaleTimeString("pl-PL", {
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                    })
+                                                    : "—"}
+                                            </time>
+                                            <span
+                                                className="max-w-24 truncate text-xs text-gray-500"
+                                                title={leagueName}
+                                            >
+                                                {leagueName}
                                             </span>
                                         </div>
-                                    ) : (
-                                        <img src={matchIcon} alt="" aria-hidden="true" className="h-3 w-3 invert opacity-60" />
-                                    )}
-                                    <span className="min-w-0 truncate text-right">{match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}</span>
-                                </div>
-                            </Link>
-                        ))}
+                                    </div>
+                                </Link>
+                            );
+                        })}
                     </div>
                 )}
             </section>

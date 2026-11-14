@@ -15,6 +15,7 @@ const MAX_FIXTURE_PAGES = 5;
 const FACEIT_MAX_RETRIES = 3;
 const UNKNOWN_NAME_RETRY_INTERVAL_MS = 60 * 60 * 1000;
 const RESULTS_SYNC_INTERVAL_MS = 60 * 1000;
+const LIVE_MATCH_SYNC_INTERVAL_MS = 15 * 1000;
 const RESULTS_SYNC_VERSION = 5;
 
 class FaceitRequestError extends Error {
@@ -69,6 +70,10 @@ type FaceitScheduledMatch = {
 };
 
 type MatchScorePair = [number | null, number | null];
+type FaceitTeamProfile = {
+  name: string | null;
+  logoUrl: string | null;
+};
 
 function getCurrentChampionshipId(profile: unknown): string | null {
   if (typeof profile !== "object" || profile === null) return null;
@@ -396,29 +401,69 @@ function getTeamName(value: unknown): string | null {
   )?.trim() ?? null;
 }
 
-async function fetchFaceitTeamName(faceitTeamId: string): Promise<string | null> {
+function getTeamLogoUrl(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) return null;
+
+  const record = value as Record<string, unknown>;
+  const payload = typeof record.payload === "object" && record.payload !== null
+    ? record.payload as Record<string, unknown>
+    : null;
+  const team = typeof record.team === "object" && record.team !== null
+    ? record.team as Record<string, unknown>
+    : null;
+  const payloadTeam =
+    payload && typeof payload.team === "object" && payload.team !== null
+      ? payload.team as Record<string, unknown>
+      : null;
+  const sources = [record, payload, team, payloadTeam].filter(
+    (source): source is Record<string, unknown> => source !== null,
+  );
+  const candidates = sources.flatMap((source) => [
+    source.avatar,
+    source.avatar_url,
+    source.logo,
+    source.logo_url,
+    source.picture,
+    source.image,
+  ]);
+  const url = candidates.find(
+    (candidate): candidate is string =>
+      typeof candidate === "string" &&
+      candidate.trim().startsWith("https://"),
+  );
+
+  return url?.trim() ?? null;
+}
+
+async function fetchFaceitTeamProfile(
+  faceitTeamId: string,
+): Promise<FaceitTeamProfile | null> {
+  let profile: FaceitTeamProfile = { name: null, logoUrl: null };
+
   for (const path of [
     `/teams/v1/teams/${encodeURIComponent(faceitTeamId)}`,
     `/teams/v1/teams/${encodeURIComponent(faceitTeamId)}/profile`,
   ]) {
     try {
       const data = await fetchFaceitJson(`${FACEIT_BASE_URL}${path}`);
-      const name = getTeamName(data);
-      if (name) return name;
+      profile = {
+        name: getTeamName(data) ?? profile.name,
+        logoUrl: getTeamLogoUrl(data) ?? profile.logoUrl,
+      };
+      if (profile.name && profile.logoUrl) return profile;
     } catch (error) {
       if (error instanceof FaceitRequestError && error.status === 404) continue;
-      console.error(`Unable to resolve FACEIT team name ${faceitTeamId}:`, error);
-      return null;
+      console.error(`Unable to resolve FACEIT team profile ${faceitTeamId}:`, error);
+      break;
     }
   }
 
-  return null;
+  return profile.name || profile.logoUrl ? profile : null;
 }
 
 async function syncUpcomingFixtures(
   teamId: string,
   faceitId: string,
-  profile: unknown,
   apiKey: string,
   forceRefresh: boolean,
 ) {
@@ -435,7 +480,7 @@ async function syncUpcomingFixtures(
   const { data: team, error: teamError } = await supabase
     .from("teams")
     .select(
-      "id, name, faceit_id, esea_fixtures_synced_at, esea_results_synced_at, esea_results_sync_version",
+      "id, name, faceit_id, esea_fixtures_synced_at, esea_results_synced_at, esea_live_synced_at, esea_results_sync_version",
     )
     .eq("id", teamId)
     .maybeSingle();
@@ -472,11 +517,55 @@ async function syncUpcomingFixtures(
     team.esea_results_sync_version >= RESULTS_SYNC_VERSION &&
     Number.isFinite(lastResultsSyncedAt) &&
     Date.now() - lastResultsSyncedAt < RESULTS_SYNC_INTERVAL_MS;
+  const lastLiveSyncedAt = team.esea_live_synced_at
+    ? new Date(team.esea_live_synced_at).getTime()
+    : 0;
+  const liveSyncIsFresh =
+    Number.isFinite(lastLiveSyncedAt) &&
+    Date.now() - lastLiveSyncedAt < LIVE_MATCH_SYNC_INTERVAL_MS;
   const shouldSyncFixtures = forceRefresh || !fixtureSyncIsFresh;
   const shouldSyncResults = forceRefresh || !resultsSyncIsFresh;
+  const shouldSyncLiveMatches = forceRefresh || !liveSyncIsFresh;
+  let shouldFetchLiveMatches = shouldSyncLiveMatches;
 
-  if (!shouldSyncFixtures && !shouldSyncResults) {
+  if (shouldFetchLiveMatches && !forceRefresh) {
+    const now = Date.now();
+    const { data: liveCandidates, error: liveCandidatesError } = await supabase
+      .from("matches")
+      .select("id")
+      .eq("team_1_id", team.id)
+      .not("faceit_match_id", "is", null)
+      .gte("time", new Date(now - 6 * 60 * 60 * 1000).toISOString())
+      .lte("time", new Date(now + 15 * 60 * 1000).toISOString())
+      .limit(1);
+    if (liveCandidatesError) throw liveCandidatesError;
+    shouldFetchLiveMatches = (liveCandidates?.length ?? 0) > 0;
+  }
+
+  if (!shouldSyncFixtures && !shouldSyncResults && !shouldSyncLiveMatches) {
     return { status: "fresh", saved: 0 };
+  }
+
+  if (!shouldSyncFixtures && !shouldSyncResults && !shouldFetchLiveMatches) {
+    const { error: liveTimestampError } = await supabase
+      .from("teams")
+      .update({ esea_live_synced_at: new Date().toISOString() })
+      .eq("id", team.id);
+    if (liveTimestampError) throw liveTimestampError;
+    return { status: "no-live-fixtures", saved: 0 };
+  }
+
+  let profile: unknown;
+  try {
+    profile = await fetchFaceitJson(
+      `${FACEIT_BASE_URL}/team-leagues/v1/teams/${encodeURIComponent(faceitId)}/profile/leagues/current`,
+    );
+  } catch (error) {
+    if (error instanceof FaceitRequestError && error.status === 404) {
+      console.warn(`No current championship found for FACEIT team ${faceitId}`);
+      return { status: "no-current-season", saved: 0 };
+    }
+    throw error;
   }
 
   const currentChampionshipId = getCurrentChampionshipId(profile);
@@ -487,7 +576,7 @@ async function syncUpcomingFixtures(
 
   const teamsResult = await supabase
     .from("teams")
-    .select("id, name, faceit_id")
+    .select("id, name, faceit_id, logo")
     .not("faceit_id", "is", null);
   if (teamsResult.error) throw teamsResult.error;
 
@@ -500,6 +589,9 @@ async function syncUpcomingFixtures(
   const knownTeamsByName = new Map(
     allTeams.map((entry) => [normalizeTeamName(entry.name), entry] as const),
   );
+  const knownTeamsById = new Map(
+    allTeams.map((entry) => [String(entry.id), entry] as const),
+  );
   const fixtures = new Map<string, {
     faceit_match_id: string;
     team_1_id: string | number;
@@ -509,9 +601,22 @@ async function syncUpcomingFixtures(
     team_1_score: number | null;
     team_2_score: number | null;
     finished: boolean;
+    opponent_faceit_team_id: string | null;
+    opponent_logo_url: string | null;
     league: null;
   }>();
-  const opponentNameCache = new Map<string, Promise<string | null>>();
+  const opponentProfileCache = new Map<
+    string,
+    Promise<FaceitTeamProfile | null>
+  >();
+  const getOpponentProfile = (opponentFaceitId: string) => {
+    let profile = opponentProfileCache.get(opponentFaceitId);
+    if (!profile) {
+      profile = fetchFaceitTeamProfile(opponentFaceitId);
+      opponentProfileCache.set(opponentFaceitId, profile);
+    }
+    return profile;
+  };
   const matchScoreCache = new Map<string, Promise<MatchScorePair>>();
   const now = Date.now();
   for (const championshipId of [currentChampionshipId]) {
@@ -601,12 +706,10 @@ async function syncUpcomingFixtures(
           let opponentName = factionName || knownOpponent?.name || null;
 
           if (!opponentName) {
-            let nameRequest = opponentNameCache.get(opponent.premade_team_id);
-            if (!nameRequest) {
-              nameRequest = fetchFaceitTeamName(opponent.premade_team_id);
-              opponentNameCache.set(opponent.premade_team_id, nameRequest);
-            }
-            opponentName = await nameRequest;
+            const opponentProfile = await getOpponentProfile(
+              opponent.premade_team_id,
+            );
+            opponentName = opponentProfile?.name ?? null;
           }
 
           const existingFixture = fixtures.get(matchId);
@@ -632,6 +735,11 @@ async function syncUpcomingFixtures(
             team_1_score: team1Score,
             team_2_score: team2Score,
             finished: isFinished || existingFixture?.finished === true,
+            opponent_faceit_team_id: opponent.premade_team_id,
+            opponent_logo_url: getTeamLogoUrl(opponent) ??
+              getTeamLogoUrl(opponent.team) ??
+              existingFixture?.opponent_logo_url ??
+              null,
             league: null,
           });
         }
@@ -640,7 +748,7 @@ async function syncUpcomingFixtures(
       }
     }
 
-    if (shouldSyncResults) {
+    if (shouldFetchLiveMatches) {
       for (let page = 0; page < MAX_FIXTURE_PAGES; page += 1) {
         const params = new URLSearchParams({
           type: "ongoing",
@@ -689,6 +797,11 @@ async function syncUpcomingFixtures(
                 normalizeTeamName(opponentFactionData.name),
               )
               : undefined);
+          const opponentProfile = !opponentTeam &&
+              opponentFactionData.faction_id &&
+              !opponentFactionData.name?.trim()
+            ? await getOpponentProfile(opponentFactionData.faction_id)
+            : null;
           const existingFixture = fixtures.get(match.match_id);
           const orderedTeams = getFixtureTeamOrder(
             team.id,
@@ -712,7 +825,12 @@ async function syncUpcomingFixtures(
               existingFixture?.team_1_score ?? null,
             team_2_score: orderedTeams.team_2_score ??
               existingFixture?.team_2_score ?? null,
-            finished: existingFixture?.finished ?? false,
+            finished: false,
+            opponent_faceit_team_id: opponentFactionData.faction_id ?? null,
+            opponent_logo_url: getTeamLogoUrl(opponentFactionData) ??
+              opponentProfile?.logoUrl ??
+              existingFixture?.opponent_logo_url ??
+              null,
             league: null,
           });
         }
@@ -728,7 +846,7 @@ async function syncUpcomingFixtures(
     const existingMatchesResult = await supabase
       .from("matches")
       .select(
-        "faceit_match_id, team_1_id, team_2_id, team_2_name, team_1_score, team_2_score, finished",
+        "faceit_match_id, team_1_id, team_2_id, team_2_name, team_2_logo_url, team_1_score, team_2_score, finished",
       )
       .in("faceit_match_id", fixtureRows.map((match) => match.faceit_match_id));
     if (existingMatchesResult.error) throw existingMatchesResult.error;
@@ -739,7 +857,7 @@ async function syncUpcomingFixtures(
         match,
       ]),
     );
-    const rowsToSave = fixtureRows.map((match) => {
+    const rowsToSave = await Promise.all(fixtureRows.map(async (match) => {
       const existing = existingMatches.get(match.faceit_match_id);
       const existingIsReversed = existing &&
         String(existing.team_1_id) !== String(match.team_1_id) &&
@@ -750,18 +868,47 @@ async function syncUpcomingFixtures(
       const existingTeam2Score = existingIsReversed
         ? existing.team_1_score
         : existing?.team_2_score;
+      const team2Id = match.team_2_id ?? existing?.team_2_id ?? null;
+      const team2Name = match.team_2_name === "Nieznana drużyna"
+        ? existing?.team_2_name ?? match.team_2_name
+        : match.team_2_name;
+      const team2IsOpponent = String(team2Id ?? "") !== String(team.id);
+      const localTeam2 = team2Id == null
+        ? undefined
+        : knownTeamsById.get(String(team2Id));
+      let team2LogoUrl = team2IsOpponent &&
+          String(existing?.team_2_id ?? "") === String(team2Id ?? "")
+        ? existing?.team_2_logo_url ?? null
+        : null;
+      const matchTime = new Date(match.time).getTime();
+      const isLogoLookupInWindow =
+        matchTime >= Date.now() - 24 * 60 * 60 * 1000 &&
+        matchTime <= Date.now() + 7 * 24 * 60 * 60 * 1000;
+
+      if (team2IsOpponent && !team2LogoUrl && !localTeam2?.logo) {
+        let fetchedLogoUrl = match.opponent_logo_url;
+        const opponentFaceitId = match.opponent_faceit_team_id ??
+          localTeam2?.faceit_id;
+        if (!fetchedLogoUrl && opponentFaceitId && isLogoLookupInWindow) {
+          const opponentProfile = await getOpponentProfile(opponentFaceitId);
+          fetchedLogoUrl = opponentProfile?.logoUrl ?? null;
+        }
+        team2LogoUrl = fetchedLogoUrl;
+      }
 
       return {
-        ...match,
-        team_2_id: match.team_2_id ?? existing?.team_2_id ?? null,
-        team_2_name: match.team_2_name === "Nieznana drużyna"
-          ? existing?.team_2_name ?? match.team_2_name
-          : match.team_2_name,
+        faceit_match_id: match.faceit_match_id,
+        team_1_id: match.team_1_id,
+        team_2_id: team2Id,
+        team_2_name: team2Name,
+        team_2_logo_url: team2LogoUrl,
+        time: match.time,
         team_1_score: match.team_1_score ?? existingTeam1Score ?? null,
         team_2_score: match.team_2_score ?? existingTeam2Score ?? null,
-        finished: match.finished || existing?.finished === true,
+        finished: match.finished,
+        league: match.league,
       };
-    });
+    }));
     const { error: upsertError } = await supabase
       .from("matches")
       .upsert(rowsToSave, { onConflict: "faceit_match_id" });
@@ -771,6 +918,7 @@ async function syncUpcomingFixtures(
   const syncTimestamps: {
     esea_fixtures_synced_at?: string;
     esea_results_synced_at?: string;
+    esea_live_synced_at?: string;
     esea_results_sync_version?: number;
   } = {};
   const syncedAt = new Date().toISOString();
@@ -779,6 +927,7 @@ async function syncUpcomingFixtures(
     syncTimestamps.esea_results_synced_at = syncedAt;
     syncTimestamps.esea_results_sync_version = RESULTS_SYNC_VERSION;
   }
+  if (shouldSyncLiveMatches) syncTimestamps.esea_live_synced_at = syncedAt;
 
   const { error: timestampError } = await supabase
     .from("teams")
@@ -855,6 +1004,19 @@ serve(async (req) => {
       );
     }
 
+    if (action === "sync-fixtures") {
+      const fixtureSync = await syncUpcomingFixtures(
+        teamId,
+        faceitId,
+        apiKey,
+        forceRefresh,
+      );
+      return Response.json(
+        { fixture_sync: fixtureSync },
+        { headers: corsHeaders },
+      );
+    }
+
     let profile: unknown = null;
     try {
       profile = await fetchFaceitJson(
@@ -863,36 +1025,18 @@ serve(async (req) => {
     } catch (error) {
       if (error instanceof FaceitRequestError && error.status === 404) {
         console.info(`No current FACEIT league profile for team ${faceitId}`);
-        if (action === "profile") {
-          return Response.json(
-            {
-              fixture_sync: {
-                status: "unavailable",
-                error: "FACEIT nie udostępnia profilu ligi dla tej drużyny.",
-              },
+        return Response.json(
+          {
+            fixture_sync: {
+              status: "unavailable",
+              error: "FACEIT nie udostępnia profilu ligi dla tej drużyny.",
             },
-            { headers: corsHeaders },
-          );
-        }
+          },
+          { headers: corsHeaders },
+        );
       }
 
-      if (!(error instanceof FaceitRequestError && error.status === 404)) {
-        throw error;
-      }
-    }
-
-    if (action === "sync-fixtures") {
-      const fixtureSync = await syncUpcomingFixtures(
-        teamId,
-        faceitId,
-        profile,
-        apiKey,
-        forceRefresh,
-      );
-      return Response.json(
-        { fixture_sync: fixtureSync },
-        { headers: corsHeaders },
-      );
+      throw error;
     }
 
     return Response.json(

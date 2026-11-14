@@ -15,32 +15,30 @@ const Matches = () => {
 
     useEffect(() => {
         let active = true;
-        let syncInProgress = false;
-        let forceNextSync = true;
-        let faceitTeams = [];
-        let syncInterval;
+        const fetchMatches = () => supabase
+            .from("matches")
+            .select(`
+                id,
+                league:tournaments!matches_league_fkey(name),
+                team_1:teams!matches_team_1_id_fkey(id, name, logo),
+                team_2:teams!matches_team_2_id_fkey(id, name, logo),
+                team_2_name,
+                team_2_logo_url,
+                faceit_match_id,
+                time,
+                team_1_score,
+                team_2_score,
+                finished
+            `)
+            .order("time", { ascending: false });
 
         const loadMatches = async () => {
             setLoading(true);
             const [matchesResult, teamsResult] = await Promise.all([
-                supabase
-                    .from("matches")
-                    .select(`
-                        id,
-                        league:tournaments!matches_league_fkey(name),
-                        team_1:teams!matches_team_1_id_fkey(id, name, logo),
-                        team_2:teams!matches_team_2_id_fkey(id, name, logo),
-                        team_2_name,
-                        faceit_match_id,
-                        time,
-                        team_1_score,
-                        team_2_score,
-                        finished
-                    `)
-                    .order("time", { ascending: false }),
+                fetchMatches(),
                 supabase
                     .from("teams")
-                    .select("id, name, faceit_id")
+                    .select("id, name")
                     .order("name", { ascending: true }),
             ]);
 
@@ -56,83 +54,31 @@ const Matches = () => {
 
             setMatches(matchesResult.data ?? []);
             setTeams(teamsResult.data ?? []);
-            faceitTeams = (teamsResult.data ?? []).filter((team) => team.faceit_id);
             setError(null);
             setLoading(false);
-
-            if (faceitTeams.length === 0) return;
-
-            const refreshMatches = async () => {
-                const { data, error: refreshError } = await supabase
-                    .from("matches")
-                    .select(`
-                        id,
-                        league:tournaments!matches_league_fkey(name),
-                        team_1:teams!matches_team_1_id_fkey(id, name, logo),
-                        team_2:teams!matches_team_2_id_fkey(id, name, logo),
-                        team_2_name,
-                        faceit_match_id,
-                        time,
-                        team_1_score,
-                        team_2_score,
-                        finished
-                    `)
-                    .order("time", { ascending: false });
-
-                if (!active) return;
-
-                if (refreshError) {
-                    console.error("Error refreshing matches after FACEIT sync:", refreshError.message);
-                    return;
-                }
-
-                setMatches(data ?? []);
-            };
-
-            const syncFaceitResults = async () => {
-                if (!active || syncInProgress || document.hidden) return;
-                syncInProgress = true;
-                const forceRefresh = forceNextSync;
-                forceNextSync = false;
-
-                await Promise.all(faceitTeams.map(async (team) => {
-                    try {
-                        const { data, error: syncError } = await supabase.functions.invoke(
-                            "faceit-team-league",
-                            {
-                                body: {
-                                    action: "sync-fixtures",
-                                    faceitId: team.faceit_id,
-                                    teamId: String(team.id),
-                                    forceRefresh,
-                                },
-                            }
-                        );
-
-                        if (syncError) throw syncError;
-                        if (data?.error) throw new Error(data.error);
-                        await refreshMatches();
-                        return true;
-                    } catch (syncError) {
-                        console.error(`FACEIT result sync failed for ${team.name}:`, syncError);
-                        return false;
-                    }
-                }));
-
-                syncInProgress = false;
-            };
-
-            void syncFaceitResults();
-            syncInterval = window.setInterval(() => {
-                void syncFaceitResults();
-            }, 60 * 1000);
         }
 
+        const refreshMatches = async () => {
+            const { data, error: refreshError } = await fetchMatches();
+
+            if (!active) return;
+
+            if (refreshError) {
+                console.error("Error refreshing matches:", refreshError.message);
+                return;
+            }
+
+            setMatches(data ?? []);
+        };
+
         void loadMatches();
+        const refreshInterval = window.setInterval(() => {
+            void refreshMatches();
+        }, 15 * 1000);
 
         return () => {
             active = false;
-            if (syncInterval) window.clearInterval(syncInterval);
+            window.clearInterval(refreshInterval);
         };
     }, []);
 
@@ -222,7 +168,7 @@ const Matches = () => {
 
     const renderMatch = (match, index) => {
         const team1Logo = getLogoUrl(match.team_1?.logo);
-        const team2Logo = getLogoUrl(match.team_2?.logo);
+        const team2Logo = getLogoUrl(match.team_2?.logo) ?? match.team_2_logo_url;
         const hasLiveScore = !match.finished &&
             (match.team_1_score != null || match.team_2_score != null);
 

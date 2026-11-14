@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
+const ARTICLE_BATCH_SIZE = 4;
+
 const Home = () => {
     const [articles, setArticles] = useState([]);
+    const [visibleArticleCount, setVisibleArticleCount] = useState(ARTICLE_BATCH_SIZE);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -44,37 +47,54 @@ const Home = () => {
                 ) : articles.length === 0 ? (
                     <p className="text-sm text-gray-400">Brak artykułów.</p>
                 ) : (
-                    <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-                        {articles.map((article) => (
-                            <Link
-                                to={`/article/${article.id}`}
-                                key={article.id}
-                                className="group min-w-0 overflow-hidden border border-white/10 transition-colors hover:border-white/20"
+                    <>
+                        <div
+                            id="home-articles-list"
+                            className="grid min-w-0 gap-4 sm:grid-cols-2"
+                        >
+                            {articles.map((article, index) => (
+                                <Link
+                                    to={`/article/${article.id}`}
+                                    key={article.id}
+                                    className={`group min-w-0 overflow-hidden border border-white/10 transition-colors hover:border-white/20 ${index >= visibleArticleCount ? "hidden" : ""}`}
+                                >
+                                    <img
+                                        src={getCoverUrl(article.cover_image)}
+                                        alt=""
+                                        className="aspect-video w-full object-cover"
+                                    />
+                                    <div className="p-4">
+                                        <h3 className="text-lg font-bold text-white group-hover:text-red-300">
+                                            {article.title}
+                                        </h3>
+                                        <p className="mt-2 text-sm text-gray-400">
+                                            Autor: {article.author}
+                                        </p>
+                                        {article.created_at && (
+                                            <time
+                                                dateTime={article.created_at}
+                                                className="mt-1 block text-xs text-gray-500"
+                                            >
+                                                {new Date(article.created_at).toLocaleDateString("pl-PL")}
+                                            </time>
+                                        )}
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                        {visibleArticleCount < articles.length && (
+                            <button
+                                type="button"
+                                aria-controls="home-articles-list"
+                                onClick={() => {
+                                    setVisibleArticleCount((count) => count + ARTICLE_BATCH_SIZE);
+                                }}
+                                className="mt-4 w-full border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.05] hover:text-white hover:cursor-pointer"
                             >
-                                <img
-                                    src={getCoverUrl(article.cover_image)}
-                                    alt=""
-                                    className="aspect-video w-full object-cover"
-                                />
-                                <div className="p-4">
-                                    <h3 className="text-lg font-bold text-white group-hover:text-red-300">
-                                        {article.title}
-                                    </h3>
-                                    <p className="mt-2 text-sm text-gray-400">
-                                        Autor: {article.author}
-                                    </p>
-                                    {article.created_at && (
-                                        <time
-                                            dateTime={article.created_at}
-                                            className="mt-1 block text-xs text-gray-500"
-                                        >
-                                            {new Date(article.created_at).toLocaleDateString("pl-PL")}
-                                        </time>
-                                    )}
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
+                                Pokaż więcej artykułów
+                            </button>
+                        )}
+                    </>
                 )}
             </section>
         </section>

@@ -12,8 +12,7 @@ const Match = () => {
 
     useEffect(() => {
         let active = true;
-        let forceNextSync = true;
-        let liveSyncInterval;
+        let matchRefreshInterval;
 
         const fetchMatch = async () => {
             const { data, error: queryError } = await supabase
@@ -22,7 +21,7 @@ const Match = () => {
                     id,
                     time,
                     team_2_name,
-                    team_1_id,
+                    team_2_logo_url,
                     faceit_match_id,
                     team_1_score,
                     team_2_score,
@@ -30,8 +29,7 @@ const Match = () => {
                     team_1:teams!matches_team_1_id_fkey (
                         id,
                         name,
-                        logo,
-                        faceit_id
+                        logo
                     ),
                     team_2:teams!matches_team_2_id_fkey (
                         id,
@@ -79,40 +77,7 @@ const Match = () => {
             return result.data;
         };
 
-        const syncLiveMatch = async (currentMatch) => {
-            if (
-                !active ||
-                !currentMatch.faceit_match_id ||
-                !currentMatch.team_1?.id ||
-                !currentMatch.team_1?.faceit_id
-            ) {
-                return;
-            }
-
-            const forceRefresh = forceNextSync;
-            forceNextSync = false;
-            const { data, error: syncError } = await supabase.functions.invoke(
-                "faceit-team-league",
-                {
-                    body: {
-                        action: "sync-fixtures",
-                        faceitId: currentMatch.team_1.faceit_id,
-                        teamId: String(currentMatch.team_1.id),
-                        forceRefresh,
-                    },
-                }
-            );
-
-            if (!active) return;
-
-            if (syncError || data?.error) {
-                console.error(
-                    "FACEIT live match sync failed:",
-                    syncError ?? data.error
-                );
-                return;
-            }
-
+        const refreshMatch = async () => {
             const result = await fetchMatch();
             if (!active || !result.data) return;
 
@@ -121,29 +86,36 @@ const Match = () => {
                 result.data.finished &&
                 result.data.team_1_score != null &&
                 result.data.team_2_score != null &&
-                liveSyncInterval
+                matchRefreshInterval
             ) {
-                window.clearInterval(liveSyncInterval);
+                window.clearInterval(matchRefreshInterval);
             }
         };
 
         const initializeMatch = async () => {
             const initialMatch = await loadMatch();
-            if (!active || !initialMatch?.faceit_match_id) return;
-
-            if (initialMatch.team_1?.faceit_id) {
-                void syncLiveMatch(initialMatch);
-                liveSyncInterval = window.setInterval(() => {
-                    void syncLiveMatch(initialMatch);
-                }, 60 * 1000);
+            if (
+                !active ||
+                !initialMatch?.faceit_match_id ||
+                (
+                    initialMatch.finished &&
+                    initialMatch.team_1_score != null &&
+                    initialMatch.team_2_score != null
+                )
+            ) {
+                return;
             }
+
+            matchRefreshInterval = window.setInterval(() => {
+                void refreshMatch();
+            }, 15 * 1000);
         };
 
         void initializeMatch();
 
         return () => {
             active = false;
-            if (liveSyncInterval) window.clearInterval(liveSyncInterval);
+            if (matchRefreshInterval) window.clearInterval(matchRefreshInterval);
         };
     }, [matchId]);
 
@@ -204,7 +176,8 @@ const Match = () => {
 
             <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 py-10 sm:gap-8 sm:px-10 sm:py-14">
                 {teams.map((team, index) => {
-                    const logoUrl = getLogoUrl(team.logo);
+                    const logoUrl = getLogoUrl(team.logo) ??
+                        (index === 1 ? match.team_2_logo_url : null);
                     const teamContent = (
                         <>
                             {logoUrl ? (

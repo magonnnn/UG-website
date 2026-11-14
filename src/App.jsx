@@ -46,7 +46,7 @@ const App = () => {
             </div>
           </div>
 
-          <main className="order-1 min-w-0 px-3 py-4 sm:px-5 sm:py-6 lg:order-2 lg:px-6 xl:px-8">
+          <main className="order-1 min-w-0 px-4 py-4 lg:order-2 lg:px-0">
             <TopBar />
             <Routes>
               <Route path="/" element={<Home />} />
