@@ -26,6 +26,7 @@ const Match = () => {
                     team_1_score,
                     team_2_score,
                     finished,
+                    cancelled,
                     team_1:teams!matches_team_1_id_fkey (
                         id,
                         name,
@@ -83,12 +84,17 @@ const Match = () => {
 
             setMatch(result.data);
             if (
-                result.data.finished &&
-                result.data.team_1_score != null &&
-                result.data.team_2_score != null &&
-                matchRefreshInterval
+                result.data.cancelled ||
+                (
+                    result.data.finished &&
+                    result.data.team_1_score != null &&
+                    result.data.team_2_score != null
+                )
             ) {
-                window.clearInterval(matchRefreshInterval);
+                if (matchRefreshInterval) {
+                    window.clearInterval(matchRefreshInterval);
+                    matchRefreshInterval = null;
+                }
             }
         };
 
@@ -97,6 +103,7 @@ const Match = () => {
             if (
                 !active ||
                 !initialMatch?.faceit_match_id ||
+                initialMatch.cancelled ||
                 (
                     initialMatch.finished &&
                     initialMatch.team_1_score != null &&
@@ -154,7 +161,7 @@ const Match = () => {
             label: match.team_2?.name ?? match.team_2_name ?? "Drużyna 2",
         },
     ];
-    const hasLiveScore = !match.finished &&
+    const hasLiveScore = !match.finished && !match.cancelled &&
         (match.team_1_score != null || match.team_2_score != null);
 
     return (
@@ -170,7 +177,7 @@ const Match = () => {
                     </p>
                 </div>
                 <span className="rounded-full bg-[#17191e] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-300">
-                    {match.finished ? "Zakończony" : hasLiveScore ? "Na żywo" : "Zaplanowany"}
+                    {match.cancelled ? "Anulowany" : match.finished ? "Zakończony" : hasLiveScore ? "Na żywo" : "Zaplanowany"}
                 </span>
             </div>
 
@@ -215,7 +222,9 @@ const Match = () => {
                 })}
                 <div className="order-2 text-center">
                     <span className={`text-2xl font-black tabular-nums sm:text-4xl ${match.finished ? "text-white" : hasLiveScore ? "text-gray-400" : "tracking-widest text-gray-500"}`}>
-                        {match.finished || hasLiveScore
+                        {match.cancelled
+                            ? "—"
+                            : match.finished || hasLiveScore
                             ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
                             : "VS"}
                     </span>

@@ -10,6 +10,7 @@ const teamMatchSelect = `
     team_1_score,
     team_2_score,
     finished,
+    cancelled,
     team_2_name,
     faceit_match_id,
     league:tournaments!matches_league_fkey(name),
@@ -363,7 +364,7 @@ const Team = () => {
                     ) : (
                         <div className="space-y-1">
                             {matches.map((match) => {
-                                const hasLiveScore = !match.finished &&
+                                const hasLiveScore = !match.finished && !match.cancelled &&
                                     (match.team_1_score != null || match.team_2_score != null);
 
                                 return (
@@ -380,7 +381,9 @@ const Team = () => {
                                             <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
                                                 <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
                                                 <span className={`shrink-0 text-xs font-bold tabular-nums text-gray-400`}>
-                                                    {match.finished || hasLiveScore
+                                                    {match.cancelled
+                                                        ? "—"
+                                                        : match.finished || hasLiveScore
                                                         ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
                                                         : "VS"}
                                                 </span>
@@ -391,6 +394,11 @@ const Team = () => {
                                             {hasLiveScore && (
                                                 <span className="text-xs font-bold uppercase tracking-wide text-red-500">
                                                     LIVE
+                                                </span>
+                                            )}
+                                            {match.cancelled && (
+                                                <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                                                    Anulowany
                                                 </span>
                                             )}
                                             <time className="text-xs text-gray-500">

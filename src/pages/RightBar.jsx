@@ -55,6 +55,7 @@ const RightBar = () => {
                     team_1_score,
                     team_2_score,
                     finished,
+                    cancelled,
                     league:tournaments!matches_league_fkey(
                         name
                     ),
@@ -73,6 +74,7 @@ const RightBar = () => {
                     `)
                 .gte("time", today.toISOString())
                 .lt("time", tomorrow.toISOString())
+                .eq("cancelled", false)
                 .eq("finished", true)
                 .not("team_1_score", "is", null)
                 .not("team_2_score", "is", null)
@@ -91,6 +93,7 @@ const RightBar = () => {
                 (data ?? []).filter(
                     (match) =>
                         match.finished &&
+                        !match.cancelled &&
                         match.team_1_score != null &&
                         match.team_2_score != null
                 )

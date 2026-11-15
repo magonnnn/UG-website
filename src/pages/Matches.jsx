@@ -28,7 +28,8 @@ const Matches = () => {
                 time,
                 team_1_score,
                 team_2_score,
-                finished
+                finished,
+                cancelled
             `)
             .order("time", { ascending: false });
 
@@ -121,17 +122,22 @@ const Matches = () => {
             String(match.team_2?.id ?? "") === selectedTeamId
         )
         : matches;
-    const upcomingMatches = filteredMatches
+    const activeMatches = filteredMatches.filter((match) => !match.cancelled);
+    const upcomingMatches = activeMatches
         .filter((match) => !match.finished)
         .sort((first, second) => new Date(first.time ?? 0) - new Date(second.time ?? 0));
-    const finishedMatches = filteredMatches
+    const finishedMatches = activeMatches
         .filter((match) => match.finished)
         .sort((first, second) => new Date(second.time ?? 0) - new Date(first.time ?? 0));
-    const orderedMatches = [...upcomingMatches, ...finishedMatches];
+    const cancelledMatches = filteredMatches
+        .filter((match) => match.cancelled)
+        .sort((first, second) => new Date(second.time ?? 0) - new Date(first.time ?? 0));
+    const orderedMatches = [...upcomingMatches, ...finishedMatches, ...cancelledMatches];
     const pageCount = Math.ceil(orderedMatches.length / PAGE_SIZE);
     const pageMatches = orderedMatches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-    const pageUpcomingMatches = pageMatches.filter((match) => !match.finished);
-    const pageFinishedMatches = pageMatches.filter((match) => match.finished);
+    const pageUpcomingMatches = pageMatches.filter((match) => !match.finished && !match.cancelled);
+    const pageFinishedMatches = pageMatches.filter((match) => match.finished && !match.cancelled);
+    const pageCancelledMatches = pageMatches.filter((match) => match.cancelled);
     const liveMatches = pageUpcomingMatches.filter((match) =>
         match.team_1_score != null || match.team_2_score != null
     );
@@ -169,7 +175,7 @@ const Matches = () => {
     const renderMatch = (match, index) => {
         const team1Logo = getLogoUrl(match.team_1?.logo);
         const team2Logo = getLogoUrl(match.team_2?.logo) ?? match.team_2_logo_url;
-        const hasLiveScore = !match.finished &&
+        const hasLiveScore = !match.finished && !match.cancelled &&
             (match.team_1_score != null || match.team_2_score != null);
 
         return (
@@ -190,9 +196,13 @@ const Matches = () => {
                         {match.team_1?.name ?? "Bez drużyny"}
                     </span>
                     <div className="flex flex-col items-center gap-1">
-                        <p className="text-xs text-red-500">{hasLiveScore ? "LIVE" : ""}</p>
+                        <p className={`text-xs ${match.cancelled ? "text-gray-500" : "text-red-500"}`}>
+                            {match.cancelled ? "ANULOWANY" : hasLiveScore ? "LIVE" : ""}
+                        </p>
                         <span className={`shrink-0 text-sm font-bold tabular-nums ${match.finished ? "text-white" : "text-gray-500"}`}>
-                            {match.finished || hasLiveScore
+                            {match.cancelled
+                                ? "—"
+                                : match.finished || hasLiveScore
                                 ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
                                 : "vs"}
                         </span>
@@ -280,6 +290,14 @@ const Matches = () => {
                                 Zakończone mecze
                             </h2>
                             {renderGroupedMatches(pageFinishedMatches)}
+                        </section>
+                    )}
+                    {pageCancelledMatches.length > 0 && (
+                        <section>
+                            <h2 className="bg-bg w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                                Anulowane mecze
+                            </h2>
+                            {renderGroupedMatches(pageCancelledMatches)}
                         </section>
                     )}
                 </div>

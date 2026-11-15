@@ -32,11 +32,13 @@ const TopBar = () => {
                         team_1_score,
                         team_2_score,
                         finished,
+                        cancelled,
                         league: tournaments!matches_league_fkey(name),
                         team_1: teams!matches_team_1_id_fkey(id, name, logo, faceit_id),
                         team_2: teams!matches_team_2_id_fkey(id, name, logo)
                     `)
                     .gte("time", today.toISOString())
+                    .eq("cancelled", false)
                     .or("finished.is.null,finished.eq.false")
                     .order("time", { ascending: true })
                     .limit(20);
