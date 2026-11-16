@@ -12,6 +12,25 @@ const Transfers = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [teams, setTeams] = useState([]);
+    const [teamFilter, setTeamFilter] = useState("");
+
+    useEffect(() => {
+        const loadTeams = async () => {
+            const { data, error } = await supabase
+                .from("teams")
+                .select("*")
+
+            if (error) {
+                setError(error.message)
+                return
+            } {
+                setTeams(data ?? [])
+            }
+        }
+
+        loadTeams()
+    }, [])
 
     useEffect(() => {
         let active = true;
@@ -75,8 +94,13 @@ const Transfers = () => {
                 timeStyle: "short",
             });
     };
-    const pageCount = Math.ceil(transfers.length / PAGE_SIZE);
-    const pageTransfers = transfers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    const filteredTransfers = teamFilter
+        ? transfers.filter((transfer) =>
+            transfer.from_team?.name === teamFilter || transfer.to_team?.name === teamFilter
+        )
+        : transfers;
+    const pageCount = Math.ceil(filteredTransfers.length / PAGE_SIZE);
+    const pageTransfers = filteredTransfers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
     return (
         <section className="min-w-0">
@@ -84,9 +108,25 @@ const Transfers = () => {
                 <img src={squadIcon} alt="" aria-hidden="true" className="h-5 w-5 invert opacity-70" />
                 <div>
                     <h1 className="text-2xl font-bold text-white sm:text-3xl">
-                        Historia transferów
+                        Transfery
                     </h1>
                 </div>
+                <label htmlFor="transfersFilter">Drużyna</label>
+                <select
+                    name="transfersFilter"
+                    id="transfersFilter"
+                    value={teamFilter}
+                    onChange={(event) => {
+                        setTeamFilter(event.target.value);
+                        setCurrentPage(1);
+                    }}
+                    className="w-full min-w-0 border p-2.5 text-sm"
+                >
+                    <option value="">Wszystkie drużyny</option>
+                    {teams.map((team) => (
+                        <option key={team.name} value={team.name}>{team.name}</option>
+                    ))}
+                </select>
             </header>
 
             {loading ? (
@@ -95,6 +135,8 @@ const Transfers = () => {
                 <p role="status" className="px-4 py-8 text-center text-sm text-red-300">{error}</p>
             ) : transfers.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-gray-400">Brak zapisanych transferów.</p>
+            ) : filteredTransfers.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-gray-400">Brak transferów dla wybranej drużyny.</p>
             ) : (
                 <ul className="divide-y divide-white/5">
                     {pageTransfers.map((transfer, index) => {
@@ -142,7 +184,7 @@ const Transfers = () => {
                     })}
                 </ul>
             )}
-            {!loading && !error && transfers.length > 0 && (
+            {!loading && !error && filteredTransfers.length > 0 && (
                 <Pagination
                     currentPage={currentPage}
                     pageCount={pageCount}
