@@ -141,27 +141,33 @@ const TopBar = () => {
 
                                 <div className="flex flex-col min-w-0 gap-3">
                                     <div className="flex min-w-0 flex-1 flex-row gap-1 text-sm text-white justify-between">
-                                        <div className="flex flex-row gap-2 items-center">
-                                            <img
-                                                src={clockIcon}
-                                                alt=""
-                                                aria-hidden="true"
-                                                className="h-3 w-3 invert opacity-50"
-                                            />
+                                        {!isLive && (
+                                            <div className="flex flex-row gap-2 items-center">
+                                                <img
+                                                    src={clockIcon}
+                                                    alt=""
+                                                    aria-hidden="true"
+                                                    className="h-3 w-3 invert opacity-50"
+                                                />
 
-                                            <time className="justify-self-end text-xs font-medium tabular-nums text-gray-300">
-                                                {match.time
-                                                    ? new Date(match.time).toLocaleTimeString("pl-PL", {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    })
-                                                    : "-"}
-                                            </time>
-                                        </div>
+                                                <time className="justify-self-end text-xs font-medium tabular-nums text-gray-300">
+                                                    {match.time
+                                                        ? new Date(match.time).toLocaleTimeString("pl-PL", {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                        })
+                                                        : "-"}
+                                                </time>
+                                            </div>
+                                        )}
                                         <span
-                                            className={`h-3 w-3 shrink-0 rounded-full ${isLive ? "bg-red-800 animate-pulse" : "opacity-0"}`}
+                                            className={`h-3 w-3 shrink-0 flex flex-row items-center gap-2 ${isLive ? "opacity-100" : "opacity-0"}`}
                                             aria-hidden="true"
-                                        />
+
+                                        >
+                                            <p className="bg-red-700 aspect-square rounded-full h-3 animate-pulse [animation-duration:_1.5s]"></p>
+                                            LIVE
+                                        </span>
                                         <span
                                             className="max-w-24 justify-self-end truncate text-right text-xs text-gray-500"
                                             title={leagueName}

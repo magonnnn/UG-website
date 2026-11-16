@@ -30,9 +30,9 @@ const Row = ({ id, team, points, roster, logo, ite, coach }) => {
                         </span>
                     ))}
                     {coach?.name && !coachIsInRoster && (
-                        <span className="inline-flex flex-col items-start gap-0.5 text-gray-400">
-                            {coach.name}
-                            <CoachBadge />
+                        <span className="inline-flex flex-row items-start gap-0.5 text-gray-400">
+                            {coach.name} (C)
+
                         </span>
                     )}
                 </span>
