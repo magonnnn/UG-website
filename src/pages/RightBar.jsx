@@ -190,7 +190,7 @@ const RightBar = () => {
 
     return (
         <aside className="min-w-0 space-y-4 p-3 sm:p-4">
-            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+            <section className="overflow-hidden border border-white/10 bg-bg">
                 <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
                     <img src={rankingIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     <Link to="/ranking" className="text-gray-400 transition-colors hover:text-white">
@@ -222,7 +222,7 @@ const RightBar = () => {
                 </div>
             </section>
 
-            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+            <section className="overflow-hidden border border-white/10 bg-bg">
                 <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
                     <img src={matchIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     <Link to="/matches" className="text-gray-400 transition-colors hover:text-white">

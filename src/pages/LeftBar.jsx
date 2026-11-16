@@ -134,7 +134,7 @@ const LeftBar = () => {
 
     return (
         <aside className="min-w-0 space-y-4 p-3 sm:p-4">
-            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+            <section className="overflow-hidden border border-white/10 bg-bg">
                 <Link
                     to="/transfers"
                     className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300 transition-colors hover:text-white"
@@ -183,7 +183,7 @@ const LeftBar = () => {
                 )}
             </section>
 
-            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+            <section className="overflow-hidden border border-white/10 bg-bg">
                 <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
                     <img src={clockIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Nadchodzące turnieje
@@ -211,7 +211,7 @@ const LeftBar = () => {
                             );
 
                             return (
-                                <div key={tournament.id}>
+                                <a key={tournament.id} href={tournament.link} className="transition-all hover:bg-white/[0.05] hover:cursor-pointer">
                                     {url ? (
                                         <a
                                             href={url}
@@ -224,7 +224,7 @@ const LeftBar = () => {
                                     ) : (
                                         <div className="border border-white/[0.07] bg-white/[0.025] px-3 py-3">{content}</div>
                                     )}
-                                </div>
+                                </a>
                             );
                         })}
                     </div>

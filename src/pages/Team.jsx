@@ -374,18 +374,37 @@ const Team = () => {
                                         key={match.id}
                                         className="flex min-w-0 flex-col gap-2 px-4 py-3 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
                                     >
+                                        {match.team_1_score > match.team_2_score ?
+                                            (
+                                                <div className={`bg-green-700 p-2 text-white font-bold aspect-square rounded-md w-10 flex justify-center items-center ${match.finished ? "show" : "hidden"}`}>
+                                                    W
+                                                </div>
+                                            )
+                                            :
+                                            (
+                                                <div className={`bg-red-700 p-2 text-white font-bold aspect-square rounded-md w-10 flex justify-center items-center ${match.finished ? "show" : "hidden"}`}>
+                                                    L
+                                                </div>
+                                            )
+                                        }
+                                        {
+                                            !match.finished ? (
+                                                <div className={`bg-gray-500 p-2 text-white font-bold aspect-square rounded-md w-10 flex justify-center items-center`}>
+                                                    ?
+                                                </div>
+                                            ) : (
+                                                <></>
+                                            )
+                                        }
                                         <div className="min-w-0">
-                                            <p className="truncate text-xs font-medium text-gray-500">
-                                                {match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz")}
-                                            </p>
                                             <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
                                                 <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
                                                 <span className={`shrink-0 text-xs font-bold tabular-nums text-gray-400`}>
                                                     {match.cancelled
-                                                        ? "—"
+                                                        ? "-"
                                                         : match.finished || hasLiveScore
-                                                        ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
-                                                        : "VS"}
+                                                            ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
+                                                            : "VS"}
                                                 </span>
                                                 <span className="min-w-0 truncate">{match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}</span>
                                             </div>
@@ -401,6 +420,9 @@ const Team = () => {
                                                     Anulowany
                                                 </span>
                                             )}
+                                            <p className="truncate text-xs font-medium text-gray-500">
+                                                {match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz")}
+                                            </p>
                                             <time className="text-xs text-gray-500">
                                                 {match.time
                                                     ? new Date(match.time).toLocaleString("pl-PL", {

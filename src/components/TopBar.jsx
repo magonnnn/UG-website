@@ -95,7 +95,7 @@ const TopBar = () => {
     };
 
     return (
-        <section className="mb-4 w-full overflow-hidden border border-white/10 bg-white/[0.015]">
+        <section className="mb-4 w-full overflow-hidden border border-white/10 bg-bg">
             <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
                 <h2 className="flex min-w-0 items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-300 sm:text-sm">
                     <img
