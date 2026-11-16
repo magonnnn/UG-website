@@ -163,7 +163,7 @@ const Announcements = () => {
             {authReady && (user ? (
                 <form
                     onSubmit={addAnnouncement}
-                    className="mb-6 space-y-3 border border-white/10 bg-white/[0.03] p-4"
+                    className="mb-6 space-y-3 border border-white/10 bg-bg p-4"
                 >
                     <h2 className="text-lg font-bold text-white">Dodaj ogłoszenie</h2>
                     <label className="block space-y-1 text-sm text-gray-300">
@@ -221,7 +221,7 @@ const Announcements = () => {
                 <ul className="grid gap-4 sm:grid-cols-2">
                     {announcements.map((announcement) => (
                         <li key={announcement.id} className="min-w-0">
-                            <article className="h-full min-w-0 overflow-hidden border border-white/10">
+                            <article className="h-full min-w-0 overflow-hidden border border-white/10 bg-bg">
                                 <div className="border-b border-white/10 p-4">
                                     <h2 className="break-words text-lg font-bold text-white">
                                         {announcement.title}

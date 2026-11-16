@@ -83,7 +83,7 @@ const Tournaments = () => {
 
                         return (
                             <li key={tournament.id} className="relative">
-                                <article className="h-full overflow-hidden border border-white/10 transition-colors hover:border-white/20 hover:bg-white/[0.03] hover:cursor-pointer">
+                                <article className="h-full overflow-hidden border bg-bg border-white/10 transition-colors hover:border-white/20 hover:cursor-pointer">
                                     <div className="flex items-center gap-4 border-b border-white/10 p-4">
                                         <div className="flex h-16 w-16 shrink-0 items-center justify-center bg-black/30">
                                             {logoUrl ? (

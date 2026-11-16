@@ -7,6 +7,7 @@ import dblArrow from "../assets/double-right-arrow.svg";
 import partner from "../assets/partner.svg";
 import PartnerCard from "../components/PartnerCard";
 import partners from "../data/partners";
+import CoachBadge from "../components/CoachBadge";
 
 const reducedPartners = partners.filter((elem, index) => {
     return index < 3;
@@ -57,6 +58,7 @@ const LeftBar = () => {
                     .from("transfers")
                     .select(`
                         player_id,
+                        is_coach,
                         from_team:teams!transfers_from_id_fkey (
                             name,
                             logo
@@ -66,7 +68,8 @@ const LeftBar = () => {
                             logo
                         ),
                         players!transfers_player_id_fkey (
-                            name
+                            name,
+                            coach_teams:teams!teams_coach_id_fkey(id)
                         )
                     `)
                     .order("created_at", { ascending: false })
@@ -165,8 +168,11 @@ const LeftBar = () => {
                                     )}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-xs font-semibold text-white">
-                                        {transfer.players?.name ?? "Nieznany gracz"}
+                                    <p className="flex min-w-0 items-center gap-2 text-xs font-semibold text-white">
+                                        <span className="min-w-0 truncate">
+                                            {transfer.players?.name ?? "Nieznany gracz"}
+                                        </span>
+                                        {(transfer.is_coach || transfer.players?.coach_teams?.length > 0) && <CoachBadge />}
                                     </p>
                                     <p className="truncate text-[11px] text-gray-500">
                                         {transfer.from_team?.name ?? "Bez drużyny"} <img src={dblArrow} alt="" aria-hidden="true" className="h-2 w-2 invert opacity-60" /> {transfer.to_team?.name ?? "Bez drużyny"}

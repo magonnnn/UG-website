@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import redirectIcon from "../assets/redirect.svg";
 import faceitLogo from "../assets/faceit-logo.webp"
+import CoachBadge from "../components/CoachBadge";
 
 const StatRing = ({ label, value, detail, color }) => {
     const safeValue = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
@@ -74,6 +75,11 @@ const Player = () => {
                     created_at,
                     steam_profile,
                     steamid64,
+                    coach_teams:teams!teams_coach_id_fkey(
+                        id,
+                        name,
+                        logo
+                    ),
                     current_team:teams!players_current_team_fkey (
                         id,
                         name,
@@ -188,9 +194,18 @@ const Player = () => {
         .map((teamId) => teams.find((team) => team.id === Number(teamId)))
         .filter(Boolean);
 
+    const profileTeams = [
+        player.current_team,
+        ...(player.coach_teams ?? []),
+    ].filter((team, index, allTeams) =>
+        team && allTeams.findIndex(
+            (item) => item && String(item.id) === String(team.id)
+        ) === index
+    );
+    const profileTeam = profileTeams[0];
     const profileUrl = supabase.storage.from("icons").getPublicUrl("profile-default.svg").data.publicUrl;
-    const teamLogo = player.current_team?.logo
-        ? supabase.storage.from("logos").getPublicUrl(player.current_team.logo).data.publicUrl
+    const teamLogo = profileTeam?.logo
+        ? supabase.storage.from("logos").getPublicUrl(profileTeam.logo).data.publicUrl
         : null;
     const joinedAt = transfer.created_at ?? player.created_at;
     const faceitUrl = faceitPlayer.profile?.faceit_url?.replace("{lang}", "pl");
@@ -229,18 +244,14 @@ const Player = () => {
 
     return (
         <section className="min-w-0">
-            <header className="mb-6">
-                <h1 className="break-words text-2xl font-bold text-white sm:text-3xl">{player.name}</h1>
-            </header>
-
-            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]  bg-bg border border-white/10">
                 <section className="min-w-0">
                     <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                         Profil
                     </h2>
                     <div className="flex flex-col items-center px-4 py-6">
-                        {player.current_team ? (
-                            <Link to="/team" state={{ id: player.current_team.id }} aria-label={`Profil drużyny ${player.current_team.name}`}>
+                        {profileTeam ? (
+                            <Link to="/team" state={{ id: profileTeam.id }} aria-label={`Profil drużyny ${profileTeam.name}`}>
                                 {teamLogo ? (
                                     <img src={teamLogo} alt="" className="h-24 w-24 object-contain" />
                                 ) : (
@@ -250,17 +261,25 @@ const Player = () => {
                         ) : (
                             <img src={profileUrl} alt="" className="h-24 w-24 rounded-full bg-bg-light p-5 opacity-70" />
                         )}
-                        <h2 className="mt-4 break-words text-center text-xl font-bold text-white">{player.name}</h2>
+                        <h2 className="mt-4 flex max-w-full flex-col items-center gap-1 break-words text-center text-xl font-bold text-white">
+                            {player.name}
+                            {player.coach_teams?.length > 0 && <CoachBadge />}
+                        </h2>
                     </div>
                     <dl className="space-y-2 px-4 pb-4">
                         <div className="flex items-center justify-between gap-4 py-3">
-                            <dt className="text-sm text-gray-500">Drużyna</dt>
-                            <dd className="min-w-0 text-right text-sm font-medium text-white">
-                                {player.current_team ? (
-                                    <Link to="/team" state={{ id: player.current_team.id }} className="hover:text-red-300">
-                                        {player.current_team.name}
+                            <dt className="text-sm text-gray-500">{profileTeams.length > 1 ? "Drużyny" : "Drużyna"}</dt>
+                            <dd className="flex min-w-0 flex-col items-end text-right text-sm font-medium text-white">
+                                {profileTeams.length ? profileTeams.map((team) => (
+                                    <Link
+                                        key={team.id}
+                                        to="/team"
+                                        state={{ id: team.id }}
+                                        className="hover:text-red-300"
+                                    >
+                                        {team.name}
                                     </Link>
-                                ) : "Brak"}
+                                )) : "Brak"}
                             </dd>
                         </div>
                         <div className="flex items-center justify-between gap-4 py-3">

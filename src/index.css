@@ -41,8 +41,8 @@
     position: fixed;
     inset: 0;
     background-image: url("./assets/preview-christmas-outline.png");
-    background-size: auto;
-    background-repeat: repeat;
+    background-size: cover;
+    background-repeat: no-repeat;
     /* opacity: 0.75; */
     filter: blur(2px);
     pointer-events: none;
