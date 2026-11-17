@@ -8,6 +8,8 @@ import CoachBadge from "../components/CoachBadge";
 const teamMatchSelect = `
     id,
     time,
+    team_1_id,
+    team_2_id,
     team_1_score,
     team_2_score,
     finished,
@@ -391,6 +393,26 @@ const Team = () => {
                             {matches.map((match) => {
                                 const hasLiveScore = !match.finished && !match.cancelled &&
                                     (match.team_1_score != null || match.team_2_score != null);
+                                const isTeam1 = String(match.team_1_id) === String(teamId);
+                                const ownScore = isTeam1 ? match.team_1_score : match.team_2_score;
+                                const opponentScore = isTeam1 ? match.team_2_score : match.team_1_score;
+                                const hasFinalScore = match.finished && !match.cancelled &&
+                                    ownScore != null && opponentScore != null;
+                                const result = hasFinalScore
+                                    ? ownScore > opponentScore
+                                        ? "W"
+                                        : ownScore < opponentScore
+                                            ? "L"
+                                            : "D"
+                                    : null;
+                                const firstTeam = isTeam1 ? match.team_1 : match.team_2;
+                                const secondTeam = isTeam1 ? match.team_2 : match.team_1;
+                                const firstTeamScore = isTeam1 ? match.team_1_score : match.team_2_score;
+                                const secondTeamScore = isTeam1 ? match.team_2_score : match.team_1_score;
+                                const firstTeamName = firstTeam?.name ??
+                                    (isTeam1 ? "Drużyna 1" : match.team_2_name ?? "Drużyna 2");
+                                const secondTeamName = secondTeam?.name ??
+                                    (isTeam1 ? match.team_2_name ?? "Drużyna 2" : "Drużyna 1");
 
                                 return (
                                     <Link
@@ -399,39 +421,31 @@ const Team = () => {
                                         key={match.id}
                                         className="flex min-w-0 flex-col gap-2 px-4 py-3 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
                                     >
-                                        {match.team_1_score > match.team_2_score ?
-                                            (
-                                                <div className={`bg-green-700 p-2 text-white font-bold aspect-square rounded-md w-10 flex justify-center items-center ${match.finished ? "show" : "hidden"}`}>
-                                                    W
-                                                </div>
-                                            )
-                                            :
-                                            (
-                                                <div className={`bg-red-700 p-2 text-white font-bold aspect-square rounded-md w-10 flex justify-center items-center ${match.finished ? "show" : "hidden"}`}>
-                                                    L
-                                                </div>
-                                            )
-                                        }
-                                        {
-                                            !match.finished ? (
-                                                <div className={`bg-gray-500 p-2 text-white font-bold aspect-square rounded-md w-10 flex justify-center items-center`}>
-                                                    ?
-                                                </div>
-                                            ) : (
-                                                <></>
-                                            )
-                                        }
+                                        {result ? (
+                                            <div className={`flex h-9 min-w-9 items-center justify-center px-2 text-xs font-bold tabular-nums ${result === "W"
+                                                ? "bg-emerald-500/15 text-emerald-300"
+                                                : result === "L"
+                                                    ? "bg-red-500/10 text-red-300"
+                                                    : "bg-gray-500/15 text-gray-300"
+                                                }`}>
+                                                {result}
+                                            </div>
+                                        ) : !match.finished && !match.cancelled ? (
+                                            <div className="flex h-9 min-w-9 items-center justify-center bg-gray-500/15 px-2 text-xs font-bold tabular-nums text-gray-300">
+                                                ?
+                                            </div>
+                                        ) : null}
                                         <div className="min-w-0">
                                             <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
-                                                <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
+                                                <span className="min-w-0 truncate">{firstTeamName}</span>
                                                 <span className={`shrink-0 text-xs font-bold tabular-nums text-gray-400`}>
                                                     {match.cancelled
                                                         ? "-"
                                                         : match.finished || hasLiveScore
-                                                            ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
+                                                            ? `${firstTeamScore ?? "-"} : ${secondTeamScore ?? "-"}`
                                                             : "VS"}
                                                 </span>
-                                                <span className="min-w-0 truncate">{match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}</span>
+                                                <span className="min-w-0 truncate">{secondTeamName}</span>
                                             </div>
                                         </div>
                                         <div className="flex shrink-0 items-center gap-2">

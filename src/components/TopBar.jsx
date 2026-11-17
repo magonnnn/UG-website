@@ -4,6 +4,24 @@ import { Link } from "react-router-dom";
 import clockIcon from "../assets/clock.svg";
 import matchIcon from "../assets/match.svg";
 
+const getMatchDateLabel = (time) => {
+    if (!time) return "";
+
+    const matchDate = new Date(time);
+    if (Number.isNaN(matchDate.getTime())) return "";
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (matchDate.toDateString() === today.toDateString()) return "";
+    if (matchDate.toDateString() === tomorrow.toDateString()) return "JUTRO";
+
+    return matchDate.toLocaleDateString("pl-PL");
+};
+
 const TopBar = () => {
     const [error, setError] = useState("");
     const [matches, setMatches] = useState([]);
@@ -129,6 +147,7 @@ const TopBar = () => {
                             match.team_2?.name ?? match.team_2_name ?? "Drużyna 2";
                         const leagueName =
                             match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz");
+                        const dateLabel = getMatchDateLabel(match.time);
 
                         return (
                             <Link
@@ -136,30 +155,39 @@ const TopBar = () => {
                                 className={`group min-w-0 ${isLive ? "border border-red-800 bg-red-500/10" : "border border-white/[0.07] bg-white/[0.025]"} px-3 py-3 transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]`}
                                 state={{ id: match.id }}
                                 to="/match"
-                                aria-label={`${team1Name} versus ${team2Name}, ${match.time ? new Date(match.time).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "godzina nieznana"}, ${leagueName}`}
+                                aria-label={`${team1Name} versus ${team2Name}, ${dateLabel ? `${dateLabel}, ` : ""}${match.time ? new Date(match.time).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "godzina nieznana"}, ${leagueName}`}
                             >
 
                                 <div className="flex flex-col min-w-0 gap-3">
                                     <div className="flex min-w-0 flex-1 flex-row gap-1 text-sm text-white justify-between">
-                                        {!isLive && (
-                                            <div className="flex flex-row gap-2 items-center">
-                                                <img
-                                                    src={clockIcon}
-                                                    alt=""
-                                                    aria-hidden="true"
-                                                    className="h-3 w-3 invert opacity-50"
-                                                />
-
-                                                <time className="justify-self-end text-xs font-medium tabular-nums text-gray-300">
-                                                    {match.time
-                                                        ? new Date(match.time).toLocaleTimeString("pl-PL", {
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                        })
-                                                        : "-"}
+                                        <div className="flex items-center gap-2">
+                                            {!isLive && (
+                                                <div className="flex flex-row items-center gap-2">
+                                                    <img
+                                                        src={clockIcon}
+                                                        alt=""
+                                                        aria-hidden="true"
+                                                        className="h-3 w-3 invert opacity-50"
+                                                    />
+                                                    <time className="justify-self-end text-xs font-medium tabular-nums text-gray-300">
+                                                        {match.time
+                                                            ? new Date(match.time).toLocaleTimeString("pl-PL", {
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                            })
+                                                            : "-"}
+                                                    </time>
+                                                </div>
+                                            )}
+                                            {dateLabel && (
+                                                <time
+                                                    dateTime={match.time}
+                                                    className="text-xs font-medium text-gray-400"
+                                                >
+                                                    {dateLabel}
                                                 </time>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                         <span
                                             className={`h-3 w-3 shrink-0 flex flex-row items-center gap-2 ${isLive ? "opacity-100" : "opacity-0"}`}
                                             aria-hidden="true"

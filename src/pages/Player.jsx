@@ -54,6 +54,9 @@ const Player = () => {
     const [recentStats, setRecentStats] = useState(null);
     const [recentStatsLoading, setRecentStatsLoading] = useState(false);
     const [recentStatsError, setRecentStatsError] = useState("");
+    const [websiteMatches, setWebsiteMatches] = useState([]);
+    const [websiteMatchesLoading, setWebsiteMatchesLoading] = useState(false);
+    const [websiteMatchesError, setWebsiteMatchesError] = useState("");
 
     useEffect(() => {
         let active = true;
@@ -115,6 +118,9 @@ const Player = () => {
             setFaceitPlayer({});
             setRecentStats(null);
             setRecentStatsError("");
+            setWebsiteMatches([]);
+            setWebsiteMatchesError("");
+            setWebsiteMatchesLoading(false);
             setRecentStatsLoading(Boolean(steamid64));
             if (!steamid64) return;
 
@@ -149,6 +155,132 @@ const Player = () => {
             active = false;
         };
     }, [player.steamid64]);
+
+    useEffect(() => {
+        let active = true;
+        const teamIds = [...new Set([
+            ...(Array.isArray(player.team_history) ? player.team_history : []),
+            player.current_team?.id,
+        ].filter((teamId) => teamId != null).map(Number))].filter(Number.isInteger);
+
+        const loadWebsiteMatches = async () => {
+            if (
+                id == null ||
+                player.id == null ||
+                String(player.id) !== String(id) ||
+                !player.steamid64 ||
+                teamIds.length === 0
+            ) {
+                setWebsiteMatches([]);
+                setWebsiteMatchesError("");
+                setWebsiteMatchesLoading(false);
+                return;
+            }
+
+            setWebsiteMatchesLoading(true);
+            setWebsiteMatchesError("");
+
+            try {
+                const matchSelect = `
+                    id,
+                    time,
+                    faceit_match_id,
+                    team_1_score,
+                    team_2_score,
+                    league:tournaments!matches_league_fkey(name),
+                    team_1:teams!matches_team_1_id_fkey(id, name, faceit_id),
+                    team_2:teams!matches_team_2_id_fkey(id, name, faceit_id)
+                `;
+                const loadTeamMatches = async (teamColumn) => {
+                    const matches = [];
+                    const pageSize = 1000;
+
+                    for (let offset = 0; ; offset += pageSize) {
+                        const { data, error } = await supabase
+                            .from("matches")
+                            .select(matchSelect)
+                            .in(teamColumn, teamIds)
+                            .eq("finished", true)
+                            .eq("cancelled", false)
+                            .not("faceit_match_id", "is", null)
+                            .order("time", { ascending: false })
+                            .order("id", { ascending: false })
+                            .range(offset, offset + pageSize - 1);
+
+                        if (error) throw error;
+                        const page = data ?? [];
+                        matches.push(...page);
+                        if (page.length < pageSize) return matches;
+                    }
+                };
+                const [team1Matches, team2Matches] = await Promise.all([
+                    loadTeamMatches("team_1_id"),
+                    loadTeamMatches("team_2_id"),
+                ]);
+
+                const siteMatchesById = new Map(
+                    [...team1Matches, ...team2Matches]
+                        .map((match) => [match.id, match]),
+                );
+                const siteMatches = [...siteMatchesById.values()].sort(
+                    (first, second) =>
+                        new Date(second.time ?? 0) - new Date(first.time ?? 0),
+                );
+                const siteMatchIds = [...new Set(
+                    siteMatches.map((match) => match.faceit_match_id).filter(Boolean),
+                )];
+
+                if (siteMatchIds.length === 0) {
+                    if (active) setWebsiteMatches([]);
+                    return;
+                }
+
+                const statsByMatchId = new Map();
+                const statsBatchSize = 100;
+                for (let index = 0; index < siteMatchIds.length; index += statsBatchSize) {
+                    const { data: statsData, error: statsError } = await supabase.functions.invoke(
+                        "faceit-player-stats",
+                        {
+                            body: {
+                                steamid64: player.steamid64,
+                                siteMatchIds: siteMatchIds.slice(index, index + statsBatchSize),
+                            },
+                        },
+                    );
+
+                    if (statsError) throw statsError;
+                    if (!Array.isArray(statsData?.matchStats)) {
+                        throw new Error("FACEIT website match stats response is invalid.");
+                    }
+
+                    statsData.matchStats.forEach((stats) => {
+                        statsByMatchId.set(stats.matchId, stats);
+                    });
+                }
+
+                const matchesWithStats = siteMatches
+                    .map((match) => ({
+                        ...match,
+                        stats: statsByMatchId.get(match.faceit_match_id),
+                    }))
+                    .filter((match) => match.stats);
+
+                if (active) setWebsiteMatches(matchesWithStats);
+            } catch (loadError) {
+                if (!active) return;
+                console.error("Error loading player's website matches:", loadError);
+                setWebsiteMatchesError("Nie udało się załadować meczów rozegranych na stronie.");
+            } finally {
+                if (active) setWebsiteMatchesLoading(false);
+            }
+        };
+
+        void loadWebsiteMatches();
+
+        return () => {
+            active = false;
+        };
+    }, [id, player.current_team?.id, player.id, player.steamid64, player.team_history]);
 
     useEffect(() => {
         async function fetchTransfer() {
@@ -212,6 +344,66 @@ const Player = () => {
     const recentMatchHistory = (recentStats?.matchHistory ?? []).slice().reverse();
     const recentWins = recentMatchHistory.filter((match) => match.won).length;
     const recentLosses = recentMatchHistory.length - recentWins;
+    const websiteMatchHistory = websiteMatches.map((match) => {
+        const stats = match.stats;
+        const faceitTeamIndex = [
+            match.team_1?.faceit_id,
+            match.team_2?.faceit_id,
+        ].findIndex((faceitId) =>
+            faceitId != null && String(faceitId) === String(stats?.teamId)
+        );
+        const playerTeamIndex = faceitTeamIndex >= 0
+            ? faceitTeamIndex
+            : stats?.teamIndex;
+        const ownScore = playerTeamIndex === 0
+            ? match.team_1_score
+            : playerTeamIndex === 1
+                ? match.team_2_score
+                : null;
+        const opponentScore = playerTeamIndex === 0
+            ? match.team_2_score
+            : playerTeamIndex === 1
+                ? match.team_1_score
+                : null;
+
+        return {
+            ...match,
+            stats,
+            opponent: playerTeamIndex === 0
+                ? match.team_2?.name
+                : playerTeamIndex === 1
+                    ? match.team_1?.name
+                    : null,
+            score: ownScore != null && opponentScore != null
+                ? `${ownScore} : ${opponentScore}`
+                : "—",
+        };
+    }).filter((match) => match.stats);
+    const websiteTotals = websiteMatchHistory.reduce((totals, match) => ({
+        kills: totals.kills + (match.stats.kills ?? 0),
+        deaths: totals.deaths + (match.stats.deaths ?? 0),
+        assists: totals.assists + (match.stats.assists ?? 0),
+        headshots: totals.headshots + (match.stats.headshots ?? 0),
+        rounds: totals.rounds + (match.stats.rounds ?? 0),
+        adrDamage: totals.adrDamage + (match.stats.adr ?? 0) * (match.stats.rounds ?? 0),
+        adrRounds: totals.adrRounds + (match.stats.adr != null ? match.stats.rounds ?? 0 : 0),
+        wins: totals.wins + (match.stats.won ? 1 : 0),
+        ratingTotal: totals.ratingTotal +
+            (match.stats.ratingEstimate ?? 0) * (match.stats.rounds ?? 0),
+        ratingRounds: totals.ratingRounds +
+            (match.stats.ratingEstimate != null ? match.stats.rounds ?? 0 : 0),
+    }), {
+        kills: 0,
+        deaths: 0,
+        assists: 0,
+        headshots: 0,
+        rounds: 0,
+        adrDamage: 0,
+        adrRounds: 0,
+        wins: 0,
+        ratingTotal: 0,
+        ratingRounds: 0,
+    });
     const chartMax = Math.max(
         1,
         ...recentMatchHistory.flatMap((match) => [match.kills, match.deaths])
@@ -365,7 +557,7 @@ const Player = () => {
                 <div className="grid min-w-0 content-start gap-4">
                     <section className="min-w-0">
                         <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
-                            Statystyki
+                            Statystyki FACEIT
                         </h2>
                         {recentStatsLoading ? (
                             <p className="px-4 py-5 text-sm text-gray-500">Pobieranie statystyk...</p>
@@ -381,6 +573,12 @@ const Player = () => {
                                         ["K/D", recentStats.killDeathRatio.toFixed(2)],
                                         ["HS", `${recentStats.headshotPercentage.toFixed(1)}%`],
                                         ["Wygrane", `${recentStats.winPercentage.toFixed(1)}%`],
+                                        [
+                                            "Rating (szacunek)",
+                                            recentStats.ratingEstimate != null
+                                                ? recentStats.ratingEstimate.toFixed(2)
+                                                : "—",
+                                        ],
                                     ].map(([label, value]) => (
                                         <div key={label} className="bg-white/[0.03] px-3 py-3">
                                             <dt className="text-xs text-gray-500">{label}</dt>
@@ -510,6 +708,132 @@ const Player = () => {
                                             <p className="mt-3 text-xs text-gray-500">
                                                 Ostatnie 10: K / Ś / A - najedź na wynik, aby zobaczyć szczegóły.
                                             </p>
+                                        </section>
+                                        <section className="min-w-0 border border-white/10 bg-bg">
+                                            <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                                                Mecze i statystyki na stronie
+                                            </h2>
+                                            {websiteMatchesLoading ? (
+                                                <p className="px-4 py-5 text-sm text-gray-500">
+                                                    Szukanie meczów na stronie...
+                                                </p>
+                                            ) : websiteMatchesError ? (
+                                                <p role="status" className="px-4 py-5 text-sm text-red-300">
+                                                    {websiteMatchesError}
+                                                </p>
+                                            ) : websiteMatchHistory.length === 0 ? (
+                                                <p className="px-4 py-5 text-sm text-gray-500">
+                                                    Brak zakończonych meczów tego gracza zarejestrowanych na stronie.
+                                                </p>
+                                            ) : (
+                                                <>
+                                                    <dl className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
+                                                        {[
+                                                            ["Mecze", websiteMatchHistory.length],
+                                                            [
+                                                                "Winrate",
+                                                                `${((websiteTotals.wins / websiteMatchHistory.length) * 100).toFixed(1)}%`,
+                                                            ],
+                                                            [
+                                                                "Zabójstwa / mecz",
+                                                                (websiteTotals.kills / websiteMatchHistory.length).toFixed(1),
+                                                            ],
+                                                            [
+                                                                "K/D",
+                                                                websiteTotals.deaths > 0
+                                                                    ? (websiteTotals.kills / websiteTotals.deaths).toFixed(2)
+                                                                    : websiteTotals.kills.toFixed(2),
+                                                            ],
+                                                            [
+                                                                "KPR",
+                                                                websiteTotals.rounds > 0
+                                                                    ? (websiteTotals.kills / websiteTotals.rounds).toFixed(2)
+                                                                    : "—",
+                                                            ],
+                                                            [
+                                                                "DPR",
+                                                                websiteTotals.rounds > 0
+                                                                    ? (websiteTotals.deaths / websiteTotals.rounds).toFixed(2)
+                                                                    : "—",
+                                                            ],
+                                                            [
+                                                                "ADR",
+                                                                websiteTotals.adrRounds > 0
+                                                                    ? (websiteTotals.adrDamage / websiteTotals.adrRounds).toFixed(1)
+                                                                    : "—",
+                                                            ],
+                                                            [
+                                                                "HS%",
+                                                                websiteTotals.kills > 0
+                                                                    ? `${((websiteTotals.headshots / websiteTotals.kills) * 100).toFixed(1)}%`
+                                                                    : "—",
+                                                            ],
+                                                            [
+                                                                "Rating (szacunek)",
+                                                                websiteTotals.ratingRounds > 0
+                                                                    ? (websiteTotals.ratingTotal / websiteTotals.ratingRounds).toFixed(2)
+                                                                    : "—",
+                                                            ],
+                                                        ].map(([label, value]) => (
+                                                            <div key={label} className="bg-white/[0.03] px-3 py-3">
+                                                                <dt
+                                                                    className="text-xs text-gray-500"
+                                                                    title={label === "Rating (szacunek)"
+                                                                        ? "Nieoficjalny szacunek w stylu HLTV, nie Rating 2.0."
+                                                                        : undefined}
+                                                                >
+                                                                    {label}
+                                                                </dt>
+                                                                <dd className="mt-1 text-lg font-semibold text-white">{value}</dd>
+                                                            </div>
+                                                        ))}
+                                                    </dl>
+                                                    <p className="px-4 pb-3 text-xs text-gray-500">
+                                                        Statystyki obejmują zakończone mecze FACEIT zapisane na stronie, również starsze niż ostatnie 30 spotkań.
+                                                        Rating jest szacunkiem w stylu HLTV, nie oficjalnym Ratingiem 2.0.
+                                                    </p>
+                                                    <ul className="divide-y divide-white/[0.06] border-t border-white/10">
+                                                        {websiteMatchHistory.map((match) => (
+                                                            <li key={match.id}>
+                                                                <Link
+                                                                    to="/match"
+                                                                    state={{ id: match.id }}
+                                                                    className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                                                                >
+                                                                    <span className="min-w-0">
+                                                                        <span className="block truncate text-sm font-medium text-white">
+                                                                            {match.opponent
+                                                                                ? `vs ${match.opponent}`
+                                                                                : match.league?.name ?? "Mecz"}
+                                                                        </span>
+                                                                        <span className="mt-1 block text-xs text-gray-500">
+                                                                            {match.time
+                                                                                ? new Date(match.time).toLocaleDateString("pl-PL")
+                                                                                : "Data nieznana"}
+                                                                            {match.league?.name ? ` · ${match.league.name}` : ""}
+                                                                            {` · ${match.stats.kills}/${match.stats.deaths}/${match.stats.assists} K/D/A`}
+                                                                            {match.stats.ratingEstimate != null
+                                                                                ? ` · ${match.stats.ratingEstimate.toFixed(2)} est.`
+                                                                                : ""}
+                                                                        </span>
+                                                                    </span>
+                                                                    <span className="flex shrink-0 items-center gap-2">
+                                                                        <span className="text-sm font-semibold tabular-nums text-gray-300">
+                                                                            {match.score}
+                                                                        </span>
+                                                                        <span className={`flex h-7 w-7 items-center justify-center text-xs font-bold ${match.stats.won
+                                                                            ? "bg-emerald-500/15 text-emerald-300"
+                                                                            : "bg-red-500/10 text-red-300"
+                                                                            }`}>
+                                                                            {match.stats.won ? "W" : "L"}
+                                                                        </span>
+                                                                    </span>
+                                                                </Link>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </>
+                                            )}
                                         </section>
                                     </div>
                                 )}

@@ -36,7 +36,9 @@ const Home = () => {
 
     return (
         <section className="min-w-0">
-            <img src="src\assets\clutchpoint.png" alt="Hero Image" className="w-full h-auto mb-2" />
+            <a href="https://www.clutchpoint-cp.com/" target="_blank" rel="noopener noreferrer">
+                <img src="src\assets\clutchpoint.png" alt="Hero Image" className="w-full h-auto mb-4" />
+            </a>
             <section aria-labelledby="articles-heading">
                 {loading ? (
                     <p className="text-sm text-gray-400">Ładowanie artykułów...</p>

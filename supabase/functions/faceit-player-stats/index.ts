@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { calculateHltvStyleEstimate } from "../_shared/hltvStyleEstimate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,7 @@ const FACEIT_API_BASE = "https://open.faceit.com/data/v4";
 const GAME = "cs2";
 const MATCH_LIMIT = 30;
 const STATS_CONCURRENCY = 5;
+const SITE_MATCH_ID_LIMIT = 100;
 
 type FaceitProfile = {
   player_id: string;
@@ -28,7 +30,10 @@ type PlayerMatchStats = {
 
 type MatchStatsResponse = {
   rounds?: Array<{
+    round_stats?: Record<string, string>;
     teams?: Array<{
+      team_id?: string;
+      team_stats?: Record<string, string>;
       players?: PlayerMatchStats[];
     }>;
   }>;
@@ -54,6 +59,20 @@ async function faceitRequest<T>(path: string, apiKey: string): Promise<T> {
   return response.json();
 }
 
+function getRoundCount(round: NonNullable<MatchStatsResponse["rounds"]>[number]): number {
+  const reportedRounds = Number(round.round_stats?.Rounds);
+  if (Number.isFinite(reportedRounds) && reportedRounds > 0) return reportedRounds;
+
+  return (round.teams ?? []).reduce(
+    (total, team) => total + (Number(team.team_stats?.["Final Score"]) || 0),
+    0,
+  );
+}
+
+function isFaceitMatchId(value: unknown): value is string {
+  return typeof value === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(value);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -72,12 +91,36 @@ serve(async (req) => {
       typeof body === "object" && body !== null && "steamid64" in body
         ? body.steamid64
         : null;
+    const requestedSiteMatchIds =
+      typeof body === "object" && body !== null && "siteMatchIds" in body
+        ? body.siteMatchIds
+        : undefined;
 
     if (typeof steamid64 !== "string" || !/^\d{17}$/.test(steamid64)) {
       return Response.json(
         { error: "A valid SteamID64 is required" },
         { status: 400, headers: corsHeaders },
       );
+    }
+
+    let siteMatchIds: string[] | null = null;
+    if (requestedSiteMatchIds !== undefined) {
+      if (
+        !Array.isArray(requestedSiteMatchIds) ||
+        !requestedSiteMatchIds.every(isFaceitMatchId)
+      ) {
+        return Response.json(
+          { error: "Site match IDs must be a list of valid FACEIT match IDs" },
+          { status: 400, headers: corsHeaders },
+        );
+      }
+      siteMatchIds = [...new Set(requestedSiteMatchIds)];
+      if (siteMatchIds.length > SITE_MATCH_ID_LIMIT) {
+        return Response.json(
+          { error: `No more than ${SITE_MATCH_ID_LIMIT} site match IDs can be requested at once` },
+          { status: 400, headers: corsHeaders },
+        );
+      }
     }
 
     const apiKey = Deno.env.get("FACEIT_API_KEY");
@@ -93,20 +136,36 @@ serve(async (req) => {
       throw new Error("FACEIT player profile did not include a player ID");
     }
 
-    const history = await faceitRequest<MatchHistory>(
-      `/players/${encodeURIComponent(profile.player_id)}/history?game=${GAME}&offset=0&limit=${MATCH_LIMIT}`,
-      apiKey,
-    );
-    const matches = history.items ?? [];
-    const totals = { kills: 0, deaths: 0, assists: 0, headshots: 0, wins: 0 };
+    const matches = siteMatchIds === null
+      ? (await faceitRequest<MatchHistory>(
+        `/players/${encodeURIComponent(profile.player_id)}/history?game=${GAME}&offset=0&limit=${MATCH_LIMIT}`,
+        apiKey,
+      )).items ?? []
+      : siteMatchIds.map((match_id) => ({ match_id }));
+    const totals = {
+      kills: 0,
+      deaths: 0,
+      assists: 0,
+      headshots: 0,
+      wins: 0,
+      rounds: 0,
+      damage: 0,
+      damageRounds: 0,
+    };
     const matchHistory: Array<{
       matchId: string;
       startedAt: number | string | null;
+      teamId: string | null;
+      teamIndex: number;
       kills: number;
       deaths: number;
       assists: number;
       headshots: number;
       won: boolean;
+      rounds: number;
+      maps: number;
+      adr: number | null;
+      ratingEstimate: number | null;
     }> = [];
     let completedMatches = 0;
     let failedMatches = 0;
@@ -125,12 +184,23 @@ serve(async (req) => {
               `/matches/${encodeURIComponent(match_id)}/stats`,
               apiKey,
             );
-            const player = response.rounds
-              ?.flatMap((round) => round.teams ?? [])
-              .flatMap((team) => team.players ?? [])
-              .find((entry) => entry.player_id === profile.player_id);
+            const playerRounds = (response.rounds ?? []).flatMap((round) =>
+              (round.teams ?? []).flatMap((team, teamIndex) => {
+                const player = (team.players ?? []).find(
+                  (entry) => entry.player_id === profile.player_id,
+                );
+                return player?.player_stats
+                  ? [{
+                    player,
+                    teamId: team.team_id ?? null,
+                    teamIndex,
+                    rounds: getRoundCount(round),
+                  }]
+                  : [];
+              })
+            );
 
-            if (!player?.player_stats) {
+            if (playerRounds.length === 0) {
               failedMatches += 1;
               return null;
             }
@@ -138,7 +208,7 @@ serve(async (req) => {
             return {
               matchId: match_id,
               startedAt: started_at ?? null,
-              stats: player.player_stats,
+              playerRounds,
             };
           } catch (error) {
             failedMatches += 1;
@@ -154,28 +224,64 @@ serve(async (req) => {
       for (const match of batchStats) {
         if (!match) continue;
 
-        const kills = numericStat(match.stats, "Kills");
-        const deaths = numericStat(match.stats, "Deaths");
-        const assists = numericStat(match.stats, "Assists");
-        const headshots = numericStat(match.stats, "Headshots");
-        const won = numericStat(match.stats, "Result") === 1;
+        const stats = { kills: 0, deaths: 0, assists: 0, headshots: 0 };
+        let rounds = 0;
+        let damage = 0;
+        let damageRounds = 0;
+        const firstPlayerRound = match.playerRounds[0];
+        const won = numericStat(firstPlayerRound.player.player_stats ?? {}, "Result") === 1;
 
-        totals.kills += kills;
-        totals.deaths += deaths;
-        totals.assists += assists;
-        totals.headshots += headshots;
+        for (const playerRound of match.playerRounds) {
+          const playerStats = playerRound.player.player_stats ?? {};
+          stats.kills += numericStat(playerStats, "Kills");
+          stats.deaths += numericStat(playerStats, "Deaths");
+          stats.assists += numericStat(playerStats, "Assists");
+          stats.headshots += numericStat(playerStats, "Headshots");
+          rounds += playerRound.rounds;
+
+          const adr = Number(playerStats.ADR);
+          if (Number.isFinite(adr) && playerRound.rounds > 0) {
+            damage += adr * playerRound.rounds;
+            damageRounds += playerRound.rounds;
+          }
+        }
+
+        const adr = damageRounds > 0 ? damage / damageRounds : null;
+        const ratingEstimate = calculateHltvStyleEstimate({
+          ...stats,
+          rounds,
+          adr,
+        });
+
+        totals.kills += stats.kills;
+        totals.deaths += stats.deaths;
+        totals.assists += stats.assists;
+        totals.headshots += stats.headshots;
         totals.wins += won ? 1 : 0;
+        totals.rounds += rounds;
+        totals.damage += damage;
+        totals.damageRounds += damageRounds;
         completedMatches += 1;
         matchHistory.push({
           matchId: match.matchId,
           startedAt: match.startedAt,
-          kills,
-          deaths,
-          assists,
-          headshots,
+          teamId: firstPlayerRound.teamId,
+          teamIndex: firstPlayerRound.teamIndex,
+          ...stats,
           won,
+          rounds,
+          maps: match.playerRounds.length,
+          adr,
+          ratingEstimate,
         });
       }
+    }
+
+    if (siteMatchIds !== null) {
+      return Response.json(
+        { profile, matchStats: matchHistory, failedMatches },
+        { headers: corsHeaders },
+      );
     }
 
     const ratio = (value: number, denominator: number) =>
@@ -193,6 +299,21 @@ serve(async (req) => {
           killDeathRatio: ratio(totals.kills, totals.deaths),
           headshotPercentage: ratio(totals.headshots * 100, totals.kills),
           winPercentage: ratio(totals.wins * 100, completedMatches),
+          rounds: totals.rounds,
+          killsPerRound: ratio(totals.kills, totals.rounds),
+          deathsPerRound: ratio(totals.deaths, totals.rounds),
+          adr: totals.damageRounds > 0
+            ? totals.damage / totals.damageRounds
+            : null,
+          ratingEstimate: calculateHltvStyleEstimate({
+            kills: totals.kills,
+            deaths: totals.deaths,
+            assists: totals.assists,
+            rounds: totals.rounds,
+            adr: totals.damageRounds > 0
+              ? totals.damage / totals.damageRounds
+              : null,
+          }),
           matchHistory,
         },
       },

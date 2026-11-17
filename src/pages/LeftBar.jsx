@@ -236,7 +236,7 @@ const LeftBar = () => {
                     </div>
                 )}
             </section>
-            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+            <section className="overflow-hidden border border-white/10 bg-bg">
                 <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
                     <img src={partner} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     <Link to="/partners" className="text-gray-400 transition-colors hover:text-white">

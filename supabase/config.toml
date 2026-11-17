@@ -38,6 +38,12 @@ verify_jwt = false
 import_map = "./functions/faceit-player-stats/deno.json"
 entrypoint = "./functions/faceit-player-stats/index.ts"
 
+[functions.faceit-match-leaderboard]
+enabled = true
+verify_jwt = false
+import_map = "./functions/faceit-match-leaderboard/deno.json"
+entrypoint = "./functions/faceit-match-leaderboard/index.ts"
+
 [functions.faceit-webhook]
 enabled = true
 verify_jwt = false

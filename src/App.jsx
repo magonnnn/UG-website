@@ -38,7 +38,6 @@ const App = () => {
       <ScrollToTop />
       <div className="flex min-h-screen w-full flex-col overflow-x-clip text-text">
         <Header />
-
         <div className="mx-auto grid w-full max-w-[1600px] min-w-0 flex-1 grid-cols-1 content-start lg:grid-cols-[minmax(210px,250px)_minmax(0,1fr)_minmax(220px,280px)]">
           <div className="order-2 min-w-0 lg:order-1">
             <div>
