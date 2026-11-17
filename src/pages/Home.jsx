@@ -36,6 +36,7 @@ const Home = () => {
 
     return (
         <section className="min-w-0">
+            <img src="src\assets\clutchpoint.png" alt="Hero Image" className="w-full h-auto mb-2" />
             <section aria-labelledby="articles-heading">
                 <h1 id="articles-heading" className="mb-5 text-2xl font-bold text-white sm:text-3xl">
                     Najnowsze artykuły
