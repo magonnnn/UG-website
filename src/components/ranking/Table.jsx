@@ -16,7 +16,10 @@ const Table = () => {
 
     useEffect(() => {
         async function fetchTeams() {
-            const { data, error } = await supabase.from("teams").select("*").order("points", { ascending: false });
+            const { data, error } = await supabase
+                .from("teams")
+                .select("*, coach:players!teams_coach_id_fkey(id, name)")
+                .order("points", { ascending: false });
 
             if (error) {
                 setError(error.message);
@@ -61,7 +64,7 @@ const Table = () => {
                 </form>
             </div>
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[320px] border-collapse text-left sm:min-w-[480px]">
+                <table className="w-full min-w-[320px] border-collapse text-left sm:min-w-[480px] bg-bg border border-white/10">
                     <thead>
                         <tr className="border-b border-white/10 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                             <th className="w-12 px-3 py-3 font-semibold">#</th>
@@ -96,6 +99,7 @@ const Table = () => {
                                     team={team.name}
                                     points={team.points}
                                     roster={team.roster}
+                                    coach={team.coach}
                                     logo={
                                         team.logo
                                             ? supabase.storage

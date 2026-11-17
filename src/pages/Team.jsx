@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import eseaIcon from "../assets/esea.png";
 import redirectIcon from "../assets/redirect.svg";
+import CoachBadge from "../components/CoachBadge";
 
 const teamMatchSelect = `
     id,
@@ -79,7 +80,11 @@ const Team = () => {
                     player3,
                     player4,
                     player5,
-                    faceit_id
+                    faceit_id,
+                    coach:players!teams_coach_id_fkey(
+                        id,
+                        name
+                    )
                 `).eq("id", teamId),
                 loadTeamMatches(teamId),
             ]);
@@ -218,6 +223,9 @@ const Team = () => {
         ? supabase.storage.from("logos").getPublicUrl(team.logo).data.publicUrl
         : null;
     const roster = team?.roster ?? [];
+    const coachInRoster = team?.coach && Array.from({ length: 5 }, (_, index) =>
+        team[`player${index + 1}`]
+    ).some((playerId) => String(playerId) === String(team.coach.id));
 
     if (loading) {
         return <p className="py-8 text-center text-sm text-gray-400">Ładowanie profilu drużyny...</p>;
@@ -261,7 +269,7 @@ const Team = () => {
                     <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                         Skład drużyny
                     </h2>
-                    {roster.length ? (
+                    {team.coach || roster.length ? (
                         <div className="space-y-1">
                             {roster.map((player, index) => {
                                 const playerId = team[`player${index + 1}`];
@@ -274,11 +282,28 @@ const Team = () => {
                                         className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
                                     >
                                         <img src={profileUrl} alt="" className="h-9 w-9 shrink-0 rounded-full bg-bg-light p-1.5 opacity-80" />
-                                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{player}</span>
+                                        <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                                            <span className="truncate text-sm font-medium text-white">{player}</span>
+                                            {String(playerId) === String(team.coach?.id) && <CoachBadge />}
+                                        </span>
                                         <span className="text-xs text-gray-600">{String(index + 1).padStart(2, "0")}</span>
                                     </Link>
                                 );
                             })}
+                            {team.coach && !coachInRoster && (
+                                <Link
+                                    to="/player"
+                                    state={{ id: team.coach.id }}
+                                    className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                                >
+                                    <img src={profileUrl} alt="" className="h-9 w-9 shrink-0 rounded-full bg-bg-light p-1.5 opacity-80" />
+                                    <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                                        <span className="truncate text-sm font-medium text-white">{team.coach.name}</span>
+                                        <CoachBadge />
+                                    </span>
+                                    <span className="text-xs text-gray-600">C</span>
+                                </Link>
+                            )}
                         </div>
                     ) : (
                         <p className="px-4 py-5 text-sm text-gray-500">Brak graczy w składzie.</p>
@@ -310,7 +335,7 @@ const Team = () => {
                             <div className="grid grid-cols-3 gap-2 p-3 sm:gap-4 sm:p-5">
                                 <div className="flex min-w-0 flex-col items-center justify-center px-2 py-4 sm:py-5">
                                     <span className="text-3xl font-bold tabular-nums text-success sm:text-4xl">
-                                        {currentFaceitTeam.payload.season_standing.wins ?? "—"}
+                                        {currentFaceitTeam.payload.season_standing.wins ?? "-"}
                                     </span>
                                     <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">
                                         Wygrane
@@ -320,7 +345,7 @@ const Team = () => {
                                     <span className="text-3xl font-bold tabular-nums text-white sm:text-4xl">
                                         {currentFaceitTeam.payload.season_standing.placement?.left
                                             ? `#${currentFaceitTeam.payload.season_standing.placement.left}`
-                                            : "—"}
+                                            : "-"}
                                     </span>
                                     <span className="mt-1 truncate text-[10px] font-semibold uppercase tracking-wider text-gray-400 sm:text-xs">
                                         {[
@@ -331,7 +356,7 @@ const Team = () => {
                                 </div>
                                 <div className="flex min-w-0 flex-col items-center justify-center px-2 py-4 sm:py-5">
                                     <span className="text-3xl font-bold tabular-nums text-danger sm:text-4xl">
-                                        {currentFaceitTeam.payload.season_standing.losses ?? "—"}
+                                        {currentFaceitTeam.payload.season_standing.losses ?? "-"}
                                     </span>
                                     <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">
                                         Przegrane
@@ -374,18 +399,37 @@ const Team = () => {
                                         key={match.id}
                                         className="flex min-w-0 flex-col gap-2 px-4 py-3 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
                                     >
+                                        {match.team_1_score > match.team_2_score ?
+                                            (
+                                                <div className={`bg-green-700 p-2 text-white font-bold aspect-square rounded-md w-10 flex justify-center items-center ${match.finished ? "show" : "hidden"}`}>
+                                                    W
+                                                </div>
+                                            )
+                                            :
+                                            (
+                                                <div className={`bg-red-700 p-2 text-white font-bold aspect-square rounded-md w-10 flex justify-center items-center ${match.finished ? "show" : "hidden"}`}>
+                                                    L
+                                                </div>
+                                            )
+                                        }
+                                        {
+                                            !match.finished ? (
+                                                <div className={`bg-gray-500 p-2 text-white font-bold aspect-square rounded-md w-10 flex justify-center items-center`}>
+                                                    ?
+                                                </div>
+                                            ) : (
+                                                <></>
+                                            )
+                                        }
                                         <div className="min-w-0">
-                                            <p className="truncate text-xs font-medium text-gray-500">
-                                                {match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz")}
-                                            </p>
                                             <div className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-white">
                                                 <span className="min-w-0 truncate">{match.team_1?.name ?? "Drużyna 1"}</span>
                                                 <span className={`shrink-0 text-xs font-bold tabular-nums text-gray-400`}>
                                                     {match.cancelled
-                                                        ? "—"
+                                                        ? "-"
                                                         : match.finished || hasLiveScore
-                                                        ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
-                                                        : "VS"}
+                                                            ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
+                                                            : "VS"}
                                                 </span>
                                                 <span className="min-w-0 truncate">{match.team_2?.name ?? match.team_2_name ?? "Drużyna 2"}</span>
                                             </div>
@@ -401,6 +445,9 @@ const Team = () => {
                                                     Anulowany
                                                 </span>
                                             )}
+                                            <p className="truncate text-xs font-medium text-gray-500">
+                                                {match.league?.name ?? (match.faceit_match_id ? "ESEA" : "Mecz")}
+                                            </p>
                                             <time className="text-xs text-gray-500">
                                                 {match.time
                                                     ? new Date(match.time).toLocaleString("pl-PL", {

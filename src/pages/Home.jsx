@@ -38,9 +38,6 @@ const Home = () => {
         <section className="min-w-0">
             <img src="src\assets\clutchpoint.png" alt="Hero Image" className="w-full h-auto mb-2" />
             <section aria-labelledby="articles-heading">
-                <h1 id="articles-heading" className="mb-5 text-2xl font-bold text-white sm:text-3xl">
-                    Najnowsze artykuły
-                </h1>
                 {loading ? (
                     <p className="text-sm text-gray-400">Ładowanie artykułów...</p>
                 ) : error ? (
@@ -57,7 +54,7 @@ const Home = () => {
                                 <Link
                                     to={`/article/${article.id}`}
                                     key={article.id}
-                                    className={`group min-w-0 overflow-hidden border border-white/10 transition-colors hover:border-white/20 ${index >= visibleArticleCount ? "hidden" : ""}`}
+                                    className={`group min-w-0 overflow-hidden border border-white/10 bg-bg transition-colors hover:border-white/20 ${index >= visibleArticleCount ? "hidden" : ""}`}
                                 >
                                     <img
                                         src={getCoverUrl(article.cover_image)}

@@ -7,6 +7,7 @@ import dblArrow from "../assets/double-right-arrow.svg";
 import partner from "../assets/partner.svg";
 import PartnerCard from "../components/PartnerCard";
 import partners from "../data/partners";
+import CoachBadge from "../components/CoachBadge";
 
 const reducedPartners = partners.filter((elem, index) => {
     return index < 3;
@@ -57,6 +58,7 @@ const LeftBar = () => {
                     .from("transfers")
                     .select(`
                         player_id,
+                        is_coach,
                         from_team:teams!transfers_from_id_fkey (
                             name,
                             logo
@@ -66,7 +68,8 @@ const LeftBar = () => {
                             logo
                         ),
                         players!transfers_player_id_fkey (
-                            name
+                            name,
+                            coach_teams:teams!teams_coach_id_fkey(id)
                         )
                     `)
                     .order("created_at", { ascending: false })
@@ -134,7 +137,7 @@ const LeftBar = () => {
 
     return (
         <aside className="min-w-0 space-y-4 p-3 sm:p-4">
-            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+            <section className="overflow-hidden border border-white/10 bg-bg">
                 <Link
                     to="/transfers"
                     className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300 transition-colors hover:text-white"
@@ -165,8 +168,11 @@ const LeftBar = () => {
                                     )}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-xs font-semibold text-white">
-                                        {transfer.players?.name ?? "Nieznany gracz"}
+                                    <p className="flex min-w-0 items-center gap-2 text-xs font-semibold text-white">
+                                        <span className="min-w-0 truncate">
+                                            {transfer.players?.name ?? "Nieznany gracz"}
+                                        </span>
+                                        {(transfer.is_coach || transfer.players?.coach_teams?.length > 0) && <CoachBadge />}
                                     </p>
                                     <p className="truncate text-[11px] text-gray-500">
                                         {transfer.from_team?.name ?? "Bez drużyny"} <img src={dblArrow} alt="" aria-hidden="true" className="h-2 w-2 invert opacity-60" /> {transfer.to_team?.name ?? "Bez drużyny"}
@@ -183,7 +189,7 @@ const LeftBar = () => {
                 )}
             </section>
 
-            <section className="overflow-hidden border border-white/10 bg-white/[0.015]">
+            <section className="overflow-hidden border border-white/10 bg-bg">
                 <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
                     <img src={clockIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Nadchodzące turnieje
@@ -211,7 +217,7 @@ const LeftBar = () => {
                             );
 
                             return (
-                                <div key={tournament.id}>
+                                <a key={tournament.id} href={tournament.link} className="transition-all hover:bg-white/[0.05] hover:cursor-pointer">
                                     {url ? (
                                         <a
                                             href={url}
@@ -224,7 +230,7 @@ const LeftBar = () => {
                                     ) : (
                                         <div className="border border-white/[0.07] bg-white/[0.025] px-3 py-3">{content}</div>
                                     )}
-                                </div>
+                                </a>
                             );
                         })}
                     </div>

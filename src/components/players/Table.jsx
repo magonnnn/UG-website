@@ -34,6 +34,7 @@ const Table = () => {
                     .select(`
                     id,
                     name,
+                    coach_teams:teams!teams_coach_id_fkey(id),
                     current_team:teams!players_current_team_fkey(
                         id,
                         name
@@ -128,7 +129,7 @@ const Table = () => {
             </div>
 
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[320px] border-collapse text-left">
+                <table className="w-full min-w-[320px] border-collapse text-left bg-bg border border-white/10">
                     <thead>
                         <tr className="border-b border-white/10 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                             <th className="px-3 py-3 font-semibold">Gracz</th>
@@ -160,14 +161,19 @@ const Table = () => {
 
                         {!loading &&
                             !error &&
-                            pagePlayers.map((player) => (
-                                <Row
-                                    key={player.id}
-                                    name={player.name}
-                                    team={player.current_team?.name}
-                                    id={player.id}
-                                />
-                            ))}
+                            pagePlayers.map((player) => {
+                                const isCoach = Boolean(player.coach_teams?.length);
+
+                                return (
+                                    <Row
+                                        key={player.id}
+                                        name={player.name}
+                                        team={player.current_team?.name ?? (isCoach ? "Coach" : null)}
+                                        isCoach={isCoach}
+                                        id={player.id}
+                                    />
+                                );
+                            })}
                     </tbody>
                 </table>
             </div>

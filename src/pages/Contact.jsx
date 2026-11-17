@@ -9,7 +9,7 @@ const Contact = () => {
                 return (
                     <div
                         key={admin.discord}
-                        className="relative isolate flex w-full flex-row items-center justify-between overflow-hidden p-4 text-white transition-colors hover:bg-white/[0.03] sm:p-6 border border-white/10 transition-colors hover:border-white/20"
+                        className="relative isolate flex w-full flex-row items-center justify-between overflow-hidden p-4 text-white transition-colors bg-bg hover:bg-white/10 sm:p-6 border border-white/10 transition-colors hover:border-white/20"
                     >
 
                         <div className="relative z-10">

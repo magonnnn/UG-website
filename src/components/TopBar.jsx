@@ -95,7 +95,7 @@ const TopBar = () => {
     };
 
     return (
-        <section className="mb-4 w-full overflow-hidden border border-white/10 bg-white/[0.015]">
+        <section className="mb-4 w-full overflow-hidden border border-white/10 bg-bg">
             <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
                 <h2 className="flex min-w-0 items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-300 sm:text-sm">
                     <img
@@ -138,7 +138,43 @@ const TopBar = () => {
                                 to="/match"
                                 aria-label={`${team1Name} versus ${team2Name}, ${match.time ? new Date(match.time).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }) : "godzina nieznana"}, ${leagueName}`}
                             >
-                                <div className="flex min-w-0 items-center justify-between gap-3">
+
+                                <div className="flex flex-col min-w-0 gap-3">
+                                    <div className="flex min-w-0 flex-1 flex-row gap-1 text-sm text-white justify-between">
+                                        {!isLive && (
+                                            <div className="flex flex-row gap-2 items-center">
+                                                <img
+                                                    src={clockIcon}
+                                                    alt=""
+                                                    aria-hidden="true"
+                                                    className="h-3 w-3 invert opacity-50"
+                                                />
+
+                                                <time className="justify-self-end text-xs font-medium tabular-nums text-gray-300">
+                                                    {match.time
+                                                        ? new Date(match.time).toLocaleTimeString("pl-PL", {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                        })
+                                                        : "-"}
+                                                </time>
+                                            </div>
+                                        )}
+                                        <span
+                                            className={`h-3 w-3 shrink-0 flex flex-row items-center gap-2 ${isLive ? "opacity-100" : "opacity-0"}`}
+                                            aria-hidden="true"
+
+                                        >
+                                            <p className="bg-red-700 aspect-square rounded-full h-3 animate-pulse [animation-duration:_1.5s]"></p>
+                                            LIVE
+                                        </span>
+                                        <span
+                                            className="max-w-24 justify-self-end truncate text-right text-xs text-gray-500"
+                                            title={leagueName}
+                                        >
+                                            {leagueName}
+                                        </span>
+                                    </div>
                                     <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm text-white">
                                         {[match.team_1, match.team_2].map((team, index) => {
                                             const name = index === 0 ? team1Name : team2Name;
@@ -177,32 +213,6 @@ const TopBar = () => {
                                                 </div>
                                             );
                                         })}
-                                    </div>
-                                    <div className="grid min-w-0 shrink-0 grid-cols-[12px_auto] grid-rows-2 items-center gap-x-1.5 gap-y-2 border-l border-white/[0.08] pl-3">
-                                        <img
-                                            src={clockIcon}
-                                            alt=""
-                                            aria-hidden="true"
-                                            className="h-3 w-3 invert opacity-50"
-                                        />
-                                        <time className="justify-self-end text-xs font-medium tabular-nums text-gray-300">
-                                            {match.time
-                                                ? new Date(match.time).toLocaleTimeString("pl-PL", {
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                })
-                                                : "—"}
-                                        </time>
-                                        <span
-                                            className={`h-3 w-3 shrink-0 rounded-full ${isLive ? "bg-red-800 animate-pulse" : "opacity-0"}`}
-                                            aria-hidden="true"
-                                        />
-                                        <span
-                                            className="max-w-24 justify-self-end truncate text-right text-xs text-gray-500"
-                                            title={leagueName}
-                                        >
-                                            {leagueName}
-                                        </span>
                                     </div>
                                 </div>
                             </Link>

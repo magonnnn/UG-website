@@ -165,7 +165,7 @@ const Match = () => {
         (match.team_1_score != null || match.team_2_score != null);
 
     return (
-        <article className="my-6 min-w-0">
+        <article className="my-6 min-w-0 bg-bg border border-white/10">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-400">
@@ -225,8 +225,8 @@ const Match = () => {
                         {match.cancelled
                             ? "—"
                             : match.finished || hasLiveScore
-                            ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
-                            : "VS"}
+                                ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
+                                : "VS"}
                     </span>
                 </div>
             </div>

@@ -202,6 +202,10 @@ const AdminPanel = () => {
         "admin-updated-faceit-id",
         ""
     )
+    const [updatedCoachId, setUpdatedCoachId] = useSessionState(
+        "admin-updated-coach-id",
+        ""
+    );
 
     const [loading, setLoading] = useState(false);
     const [feedback, setFeedback] = useState({ text: "", type: "" });
@@ -301,7 +305,8 @@ const AdminPanel = () => {
                 name,
                 team_history,
                 current_team,
-                steam_profile
+                steam_profile,
+                coach_teams:teams!teams_coach_id_fkey(id)
                 `)
             .order('name', { ascending: true })
 
@@ -370,6 +375,7 @@ const AdminPanel = () => {
         setSelectedTeamId("");
         setUpdatedName("");
         setUpdatedFaceitId("");
+        setUpdatedCoachId("");
         setEditRoster([]);
         setRosterInputs({ ...emptyRoster });
         setReducePoints("");
@@ -386,6 +392,7 @@ const AdminPanel = () => {
         setSelectedTeamId(team ? String(team.id) : "");
         setUpdatedName(team?.name ?? "");
         setUpdatedFaceitId(team?.faceit_id ?? "");
+        setUpdatedCoachId(team?.coach_id == null ? "" : String(team.coach_id));
         setEditRoster(nextRoster.map((playerId) => (playerId == null ? "" : String(playerId))));
         setReducePoints("");
         setIncreasePoints("");
@@ -463,11 +470,19 @@ const AdminPanel = () => {
 
         const name = updatedName.trim();
         const faceit_id = updatedFaceitId.trim();
+        const coach = players.find(
+            (player) => String(player.id) === updatedCoachId
+        );
         const pointsToReduce = Number(reducePoints || 0);
         const pointsToIncrease = Number(increasePoints || 0);
 
         if (!name) {
             showMessage("Nazwa drużyny nie może być pusta.", "error");
+            return;
+        }
+
+        if (updatedCoachId && !coach) {
+            showMessage("Wybrany coach nie istnieje w bazie graczy.", "error");
             return;
         }
 
@@ -564,6 +579,7 @@ const AdminPanel = () => {
             .update({
                 name,
                 faceit_id,
+                coach_id: coach?.id ?? null,
                 roster: rosterPlayers.map((player) => player?.name ?? "").filter(Boolean),
                 ...Object.fromEntries(
                     rosterIds.map((playerId, index) => [`player${index + 1}`, playerId])
@@ -580,6 +596,44 @@ const AdminPanel = () => {
             return;
         }
 
+        const previousCoachId = selectedTeam?.coach_id ?? null;
+        const nextCoachId = coach?.id ?? null;
+        const coachChanged = String(previousCoachId ?? "") !== String(nextCoachId ?? "");
+        let transfersChanged = false;
+
+        if (coachChanged) {
+            const coachTransfers = [
+                ...(previousCoachId == null ? [] : [{
+                    player_id: previousCoachId,
+                    from_id: selectedTeam.id,
+                    to_id: null,
+                    is_coach: true,
+                }]),
+                ...(nextCoachId == null ? [] : [{
+                    player_id: nextCoachId,
+                    from_id: null,
+                    to_id: selectedTeam.id,
+                    is_coach: true,
+                }]),
+            ];
+
+            if (coachTransfers.length > 0) {
+                const { error: coachTransferError } = await supabase
+                    .from("transfers")
+                    .insert(coachTransfers);
+
+                if (coachTransferError) {
+                    console.error("Error recording coach transfer:", coachTransferError.message);
+                    showMessage(`Błąd zapisu transferu coacha: ${coachTransferError.message}`, "error");
+                    await Promise.all([loadTeams(), loadPlayers()]);
+                    setLoading(false);
+                    return;
+                }
+
+                transfersChanged = true;
+            }
+        }
+
         const previousRosterIds = new Set(
             teamPlayerIds(selectedTeam).filter((playerId) => playerId != null).map(String)
         );
@@ -590,7 +644,6 @@ const AdminPanel = () => {
             const playerId = String(player.id);
             return previousRosterIds.has(playerId) !== nextRosterIds.has(playerId);
         });
-        let transfersChanged = false;
 
         for (const player of changedPlayers) {
             const previousTeam = player.current_team;
@@ -671,6 +724,7 @@ const AdminPanel = () => {
         if (teamsRefreshed && playersRefreshed) {
             setUpdatedName(name);
             setUpdatedFaceitId(faceit_id);
+            setUpdatedCoachId(coach ? String(coach.id) : "");
             setLogoFile(null);
             form.querySelectorAll('input[type="file"]').forEach((input) => {
                 input.value = "";
@@ -1244,6 +1298,9 @@ const AdminPanel = () => {
         setUpdatedPlayerName("");
         setUpdatedPlayerSteam("");
         setUpdatedPlayerTeam("");
+        if (String(player.id) === updatedCoachId) {
+            setUpdatedCoachId("");
+        }
 
         const [teamsRefreshed, playersRefreshed] = await Promise.all([
             loadTeams(),
@@ -1778,6 +1835,22 @@ const AdminPanel = () => {
                                         className="mb-4 mt-2 w-full min-w-0 border p-2.5 text-white"
                                         required
                                     />
+                                    <label htmlFor="updated-coach" className="text-white">
+                                        Coach
+                                    </label>
+                                    <select
+                                        id="updated-coach"
+                                        value={updatedCoachId}
+                                        onChange={(event) => setUpdatedCoachId(event.target.value)}
+                                        className="mb-4 mt-2 w-full min-w-0 border p-2.5 text-white"
+                                    >
+                                        <option value="">Brak coacha</option>
+                                        {players.map((player) => (
+                                            <option key={player.id} value={String(player.id)}>
+                                                {player.name}{player.coach_teams?.length ? " — Coach" : ""}
+                                            </option>
+                                        ))}
+                                    </select>
                                     <div>
                                         <label htmlFor="teamLogoInput" className="sr-only">Wybierz logo</label>
                                         <label className="mt-2 flex cursor-pointer items-center justify-center rounded border border-white/10 bg-bg-light px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-highlight">

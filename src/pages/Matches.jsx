@@ -183,7 +183,7 @@ const Matches = () => {
                 <Link
                     to="/match"
                     state={{ id: match.id }}
-                    className="flex min-w-0 items-center gap-2 px-4 py-4 transition-colors border border-white/10 hover:border-white/20 hover:bg-white/[0.03] sm:gap-4 sm:px-6"
+                    className="flex min-w-0 bg-bg items-center gap-2 px-4 py-4 transition-colors border border-white/10 sm:gap-4 sm:px-6  transition-colors hover:border-white/[0.14] hover:bg-white/[0.05]"
                 >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-black/30">
                         {team1Logo ? (
@@ -203,8 +203,8 @@ const Matches = () => {
                             {match.cancelled
                                 ? "—"
                                 : match.finished || hasLiveScore
-                                ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
-                                : "vs"}
+                                    ? `${match.team_1_score ?? "-"} : ${match.team_2_score ?? "-"}`
+                                    : "vs"}
                         </span>
                     </div>
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
