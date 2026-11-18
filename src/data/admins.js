@@ -12,7 +12,7 @@ const admins = [
     {
         name: "maik",
         discord: "mmaikelele",
-        role: "HEAD ADMIN",
+        role: "HEAD ADMIN + TECHNIK STRONY",
     },
     {
         name: "kwasniutki",

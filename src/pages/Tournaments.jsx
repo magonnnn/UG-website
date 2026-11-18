@@ -65,10 +65,6 @@ const Tournaments = () => {
 
     return (
         <section className="min-w-0">
-            <header className="mb-5 flex items-center gap-3">
-                <img src={matchIcon} alt="" aria-hidden="true" className="h-5 w-5 invert opacity-70" />
-                <h1 className="text-2xl font-bold text-white sm:text-3xl">Turnieje</h1>
-            </header>
             <section>
                 {loading ? (
                     <p className="px-4 py-8 text-center text-sm text-gray-400">Ładowanie turniejów...</p>
@@ -78,7 +74,7 @@ const Tournaments = () => {
                     <p className="px-4 py-8 text-center text-sm text-gray-400">Brak turniejów.</p>
                 ) : (
                     <>
-                        <div className="relative isolate mb-3 inline-flex w-fit rounded-xl border border-white/10 bg-bg-light p-1 shadow-inner shadow-black/20">
+                        <div className="relative isolate mb-4 inline-flex w-fit rounded-xl border border-white/10 bg-bg-light p-1 shadow-inner shadow-black/20">
                             <span
                                 aria-hidden="true"
                                 className={`absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/2)] rounded-lg bg-gradient-to-br from-primary to-[#8f1b25] shadow-[0_2px_12px_rgb(180_35_45/35%)] ring-1 ring-white/10 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${activeBtn === 2 ? "translate-x-full" : ""}`}

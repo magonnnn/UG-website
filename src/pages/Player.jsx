@@ -67,6 +67,7 @@ const Player = () => {
     const [websiteMatches, setWebsiteMatches] = useState([]);
     const [websiteMatchesLoading, setWebsiteMatchesLoading] = useState(false);
     const [websiteMatchesError, setWebsiteMatchesError] = useState("");
+    const [activeBtn, setActiveBtn] = useState(1);
 
     useEffect(() => {
         let active = true;
@@ -244,6 +245,7 @@ const Player = () => {
                     faceit_match_id,
                     team_1_score,
                     team_2_score,
+                    team_2_name,
                     league:tournaments!matches_league_fkey(name),
                     team_1:teams!matches_team_1_id_fkey(id, name, faceit_id),
                     team_2:teams!matches_team_2_id_fkey(id, name, faceit_id)
@@ -433,13 +435,13 @@ const Player = () => {
             ...match,
             stats,
             opponent: playerTeamIndex === 0
-                ? match.team_2?.name
+                ? match.team_2?.name ?? match.team_2_name
                 : playerTeamIndex === 1
                     ? match.team_1?.name
                     : null,
             score: ownScore != null && opponentScore != null
                 ? `${ownScore} : ${opponentScore}`
-                : "—",
+                : "-",
         };
     }).filter((match) => match.stats);
     const websiteTotals = websiteMatchHistory.reduce((totals, match) => ({
@@ -540,7 +542,7 @@ const Player = () => {
                         <div className="flex items-center justify-between gap-4 py-3">
                             <dt className="text-sm text-gray-500">W drużynie od</dt>
                             <dd className="text-right text-sm text-white">
-                                {joinedAt ? new Date(joinedAt).toLocaleDateString("pl-PL") : "—"}
+                                {joinedAt ? new Date(joinedAt).toLocaleDateString("pl-PL") : "-"}
                             </dd>
                         </div>
                         {player.steam_profile && (
@@ -691,7 +693,7 @@ const Player = () => {
                 <div className="grid min-w-0 content-start gap-4">
                     <section className="min-w-0">
                         <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
-                            Statystyki FACEIT
+                            Statystyki
                         </h2>
                         {recentStatsLoading ? (
                             <p className="px-4 py-5 text-sm text-gray-500">Pobieranie statystyk...</p>
@@ -699,154 +701,177 @@ const Player = () => {
                             <p role="status" className="px-4 py-5 text-sm text-red-300">{recentStatsError}</p>
                         ) : recentStats?.matches > 0 ? (
                             <>
-                                <dl className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
-                                    {[
-                                        ["Zabójstwa / mecz", recentStats.averageKills.toFixed(1)],
-                                        ["Śmierci / mecz", recentStats.averageDeaths.toFixed(1)],
-                                        ["Asysty / mecz", recentStats.averageAssists.toFixed(1)],
-                                        ["K/D", recentStats.killDeathRatio.toFixed(2)],
-                                        ["HS", `${recentStats.headshotPercentage.toFixed(1)}%`],
-                                        ["Wygrane", `${recentStats.winPercentage.toFixed(1)}%`],
-                                        [
-                                            "Rating (szacunek)",
-                                            recentStats.ratingEstimate != null
-                                                ? recentStats.ratingEstimate.toFixed(2)
-                                                : "—",
-                                        ],
-                                    ].map(([label, value]) => (
-                                        <div key={label} className="bg-white/[0.03] px-3 py-3">
-                                            <dt className="text-xs text-gray-500">{label}</dt>
-                                            <dd className="mt-1 text-lg font-semibold text-white">{value}</dd>
-                                        </div>
-                                    ))}
-                                </dl>
-                                {recentMatchHistory.length > 0 && (
-                                    <div className="space-y-4 px-4 pb-4">
-                                        <section className="border border-white/10 bg-black/10 p-4">
-                                            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-                                                <div>
-                                                    <h3 className="text-sm font-semibold text-white">Forma z ostatnich meczów</h3>
-                                                    <p className="mt-1 text-xs text-gray-500">
-                                                        {recentMatchHistory.length} ostatnich spotkań FACEIT
-                                                    </p>
-                                                </div>
-                                                <p className="text-xs tabular-nums text-gray-400">
-                                                    {recentWins}W <span className="text-gray-600">/</span> {recentLosses}L
-                                                </p>
-                                            </div>
-
-                                            <div className="overflow-hidden">
-                                                <svg
-                                                    viewBox="0 0 600 220"
-                                                    className="h-auto w-full"
-                                                    role="img"
-                                                    aria-label="Wykres zabójstw i śmierci na mecz"
-                                                >
-                                                    {[0, 1, 2, 3].map((step) => {
-                                                        const y = 166 - (step * 132) / 3;
-                                                        const value = Math.round((step * chartMax) / 3);
-
-                                                        return (
-                                                            <g key={step}>
-                                                                <line x1="40" y1={y} x2="560" y2={y} stroke="rgb(255 255 255 / 0.08)" />
-                                                                <text x="30" y={y + 3} textAnchor="end" className="fill-gray-600 text-[10px]">
-                                                                    {value}
-                                                                </text>
-                                                            </g>
-                                                        );
-                                                    })}
-                                                    <line
-                                                        x1="40"
-                                                        y1={averageKillsY}
-                                                        x2="560"
-                                                        y2={averageKillsY}
-                                                        stroke="#ef4444"
-                                                        strokeDasharray="4 5"
-                                                        opacity="0.55"
-                                                    />
-                                                    <polyline
-                                                        points={chartPoints.map(({ x, killsY }) => `${x},${killsY}`).join(" ")}
-                                                        fill="none"
-                                                        stroke="#ef4444"
-                                                        strokeWidth="2.5"
-                                                        strokeLinejoin="round"
-                                                        strokeLinecap="round"
-                                                    />
-                                                    <polyline
-                                                        points={chartPoints.map(({ x, deathsY }) => `${x},${deathsY}`).join(" ")}
-                                                        fill="none"
-                                                        stroke="#9ca3af"
-                                                        strokeWidth="2"
-                                                        strokeLinejoin="round"
-                                                        strokeLinecap="round"
-                                                    />
-                                                    {chartPoints.map((point, index) => (
-                                                        <g key={point.matchId}>
-                                                            <circle cx={point.x} cy={point.killsY} r="3" fill="#ef4444">
-                                                                <title>{`Mecz ${index + 1}: ${point.kills} zabójstw`}</title>
-                                                            </circle>
-                                                            <circle cx={point.x} cy={point.deathsY} r="2.5" fill="#9ca3af">
-                                                                <title>{`Mecz ${index + 1}: ${point.deaths} śmierci`}</title>
-                                                            </circle>
-                                                        </g>
-                                                    ))}
-                                                    <text x="40" y="199" className="fill-gray-600 text-[10px]">Starsze</text>
-                                                    <text x="560" y="199" textAnchor="end" className="fill-gray-600 text-[10px]">Nowsze</text>
-                                                </svg>
-                                                <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-gray-400">
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <span className="h-0.5 w-3 bg-red-500" /> Zabójstwa
-                                                    </span>
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <span className="h-0.5 w-3 bg-gray-400" /> Śmierci
-                                                    </span>
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <span className="w-3 border-t border-dashed border-red-400" /> Śr. zabójstw
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </section>
-
-                                        <section className="grid gap-4 border border-white/10 bg-black/10 p-4 sm:grid-cols-2">
-                                            <StatRing
-                                                label="Wygrane"
-                                                value={recentStats.winPercentage}
-                                                detail={`${recentWins} wygranych z ${recentStats.matches} meczów`}
-                                                color="#ef4444"
-                                            />
-                                            <StatRing
-                                                label="Celność strzałów w głowę"
-                                                value={recentStats.headshotPercentage}
-                                                detail="Udział headshotów we wszystkich zabójstwach"
-                                                color="#d1d5db"
-                                            />
-                                        </section>
-
-                                        <section className="border border-white/10 bg-black/10 p-4">
-                                            <h3 className="text-sm font-semibold text-white">Ostatnie wyniki</h3>
-                                            <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Wynik każdego z ostatnich meczów">
-                                                {recentMatchHistory.slice(-10).reverse().map((match, index) => (
-                                                    <span
-                                                        key={match.matchId}
-                                                        title={`${match.won ? "Wygrana" : "Przegrana"} · ${match.kills}/${match.deaths}/${match.assists} K/D/A`}
-                                                        aria-label={`Mecz ${index + 1}: ${match.won ? "wygrana" : "przegrana"}, ${match.kills} zabójstw, ${match.deaths} śmierci, ${match.assists} asyst`}
-                                                        className={`flex h-9 min-w-9 items-center justify-center px-2 text-xs font-bold tabular-nums ${match.won
-                                                            ? "bg-emerald-500/15 text-emerald-300"
-                                                            : "bg-red-500/10 text-red-300"
-                                                            }`}
-                                                    >
-                                                        {match.won ? "W" : "L"}
-                                                    </span>
+                                <div className="relative isolate inline-flex w-fit rounded-xl border border-white/10 bg-bg-light p-1 shadow-inner shadow-black/20 mt-3 ms-4">
+                                    <span
+                                        aria-hidden="true"
+                                        className={`absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/2)] rounded-lg bg-gradient-to-br from-primary to-[#8f1b25] shadow-[0_2px_12px_rgb(180_35_45/35%)] ring-1 ring-white/10 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${activeBtn === 2 ? "translate-x-full" : ""}`}
+                                    />
+                                    <button
+                                        type="button"
+                                        aria-pressed={activeBtn === 1}
+                                        className={`relative z-10 min-w-32 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${activeBtn === 1 ? "text-white" : "text-gray-400 hover:text-white"}`}
+                                        onClick={() => setActiveBtn(1)}
+                                    >
+                                        FACEIT
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-pressed={activeBtn === 2}
+                                        className={`relative z-10 min-w-32 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${activeBtn === 2 ? "text-white" : "text-gray-400 hover:text-white"}`}
+                                        onClick={() => setActiveBtn(2)}
+                                    >
+                                        STRONA
+                                    </button>
+                                </div>
+                                <>
+                                    {activeBtn === 1 ? (
+                                        <section>
+                                            <dl className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
+                                                {[
+                                                    ["Zabójstwa / mecz", recentStats.averageKills.toFixed(1)],
+                                                    ["Śmierci / mecz", recentStats.averageDeaths.toFixed(1)],
+                                                    ["Asysty / mecz", recentStats.averageAssists.toFixed(1)],
+                                                    ["K/D", recentStats.killDeathRatio.toFixed(2)],
+                                                    ["HS", `${recentStats.headshotPercentage.toFixed(1)}%`],
+                                                    ["Wygrane", `${recentStats.winPercentage.toFixed(1)}%`],
+                                                    [
+                                                        "Rating (szacunek)",
+                                                        recentStats.ratingEstimate != null
+                                                            ? recentStats.ratingEstimate.toFixed(2)
+                                                            : "-",
+                                                    ],
+                                                ].map(([label, value]) => (
+                                                    <div key={label} className="bg-white/[0.03] px-3 py-3">
+                                                        <dt className="text-xs text-gray-500">{label}</dt>
+                                                        <dd className="mt-1 text-lg font-semibold text-white">{value}</dd>
+                                                    </div>
                                                 ))}
-                                            </div>
-                                            <p className="mt-3 text-xs text-gray-500">
-                                                Ostatnie 10: K / Ś / A - najedź na wynik, aby zobaczyć szczegóły.
-                                            </p>
+                                            </dl>
+                                            {recentMatchHistory.length > 0 && (
+                                                <div className="space-y-4 px-4 pb-4">
+                                                    <section className="border border-white/10 bg-black/10 p-4">
+                                                        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+                                                            <div>
+                                                                <h3 className="text-sm font-semibold text-white">Forma z ostatnich meczów</h3>
+                                                                <p className="mt-1 text-xs text-gray-500">
+                                                                    {recentMatchHistory.length} ostatnich spotkań FACEIT
+                                                                </p>
+                                                            </div>
+                                                            <p className="text-xs tabular-nums text-gray-400">
+                                                                {recentWins}W <span className="text-gray-600">/</span> {recentLosses}L
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="overflow-hidden">
+                                                            <svg
+                                                                viewBox="0 0 600 220"
+                                                                className="h-auto w-full"
+                                                                role="img"
+                                                                aria-label="Wykres zabójstw i śmierci na mecz"
+                                                            >
+                                                                {[0, 1, 2, 3].map((step) => {
+                                                                    const y = 166 - (step * 132) / 3;
+                                                                    const value = Math.round((step * chartMax) / 3);
+
+                                                                    return (
+                                                                        <g key={step}>
+                                                                            <line x1="40" y1={y} x2="560" y2={y} stroke="rgb(255 255 255 / 0.08)" />
+                                                                            <text x="30" y={y + 3} textAnchor="end" className="fill-gray-600 text-[10px]">
+                                                                                {value}
+                                                                            </text>
+                                                                        </g>
+                                                                    );
+                                                                })}
+                                                                <line
+                                                                    x1="40"
+                                                                    y1={averageKillsY}
+                                                                    x2="560"
+                                                                    y2={averageKillsY}
+                                                                    stroke="#ef4444"
+                                                                    strokeDasharray="4 5"
+                                                                    opacity="0.55"
+                                                                />
+                                                                <polyline
+                                                                    points={chartPoints.map(({ x, killsY }) => `${x},${killsY}`).join(" ")}
+                                                                    fill="none"
+                                                                    stroke="#ef4444"
+                                                                    strokeWidth="2.5"
+                                                                    strokeLinejoin="round"
+                                                                    strokeLinecap="round"
+                                                                />
+                                                                <polyline
+                                                                    points={chartPoints.map(({ x, deathsY }) => `${x},${deathsY}`).join(" ")}
+                                                                    fill="none"
+                                                                    stroke="#9ca3af"
+                                                                    strokeWidth="2"
+                                                                    strokeLinejoin="round"
+                                                                    strokeLinecap="round"
+                                                                />
+                                                                {chartPoints.map((point, index) => (
+                                                                    <g key={point.matchId}>
+                                                                        <circle cx={point.x} cy={point.killsY} r="3" fill="#ef4444">
+                                                                            <title>{`Mecz ${index + 1}: ${point.kills} zabójstw`}</title>
+                                                                        </circle>
+                                                                        <circle cx={point.x} cy={point.deathsY} r="2.5" fill="#9ca3af">
+                                                                            <title>{`Mecz ${index + 1}: ${point.deaths} śmierci`}</title>
+                                                                        </circle>
+                                                                    </g>
+                                                                ))}
+                                                                <text x="40" y="199" className="fill-gray-600 text-[10px]">Starsze</text>
+                                                                <text x="560" y="199" textAnchor="end" className="fill-gray-600 text-[10px]">Nowsze</text>
+                                                            </svg>
+                                                            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-gray-400">
+                                                                <span className="inline-flex items-center gap-2">
+                                                                    <span className="h-0.5 w-3 bg-red-500" /> Zabójstwa
+                                                                </span>
+                                                                <span className="inline-flex items-center gap-2">
+                                                                    <span className="h-0.5 w-3 bg-gray-400" /> Śmierci
+                                                                </span>
+                                                                <span className="inline-flex items-center gap-2">
+                                                                    <span className="w-3 border-t border-dashed border-red-400" /> Śr. zabójstw
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </section>
+
+                                                    <section className="grid gap-4 border border-white/10 bg-black/10 p-4 sm:grid-cols-2">
+                                                        <StatRing
+                                                            label="Wygrane"
+                                                            value={recentStats.winPercentage}
+                                                            detail={`${recentWins} wygranych z ${recentStats.matches} meczów`}
+                                                            color="#ef4444"
+                                                        />
+                                                        <StatRing
+                                                            label="Celność strzałów w głowę"
+                                                            value={recentStats.headshotPercentage}
+                                                            detail="Udział headshotów we wszystkich zabójstwach"
+                                                            color="#d1d5db"
+                                                        />
+                                                    </section>
+
+                                                    <section className="border border-white/10 bg-black/10 p-4">
+                                                        <h3 className="text-sm font-semibold text-white">Ostatnie wyniki</h3>
+                                                        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Wynik każdego z ostatnich meczów">
+                                                            {recentMatchHistory.slice(-10).reverse().map((match, index) => (
+                                                                <span
+                                                                    key={match.matchId}
+                                                                    title={`${match.won ? "Wygrana" : "Przegrana"} · ${match.kills}/${match.deaths}/${match.assists} K/D/A`}
+                                                                    aria-label={`Mecz ${index + 1}: ${match.won ? "wygrana" : "przegrana"}, ${match.kills} zabójstw, ${match.deaths} śmierci, ${match.assists} asyst`}
+                                                                    className={`flex h-9 min-w-9 items-center justify-center px-2 text-xs font-bold tabular-nums ${match.won
+                                                                        ? "bg-emerald-500/15 text-emerald-300"
+                                                                        : "bg-red-500/10 text-red-300"
+                                                                        }`}
+                                                                >
+                                                                    {match.won ? "W" : "L"}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </section>
+                                                </div>
+                                            )}
                                         </section>
-                                        <section className="min-w-0 border border-white/10 bg-bg">
-                                            <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
-                                                Mecze i statystyki na stronie
-                                            </h2>
+                                    ) : (
+                                        <section className="min-w-0 px-4 bg-bg">
                                             {websiteMatchesLoading ? (
                                                 <p className="px-4 py-5 text-sm text-gray-500">
                                                     Szukanie meczów na stronie...
@@ -861,7 +886,7 @@ const Player = () => {
                                                 </p>
                                             ) : (
                                                 <>
-                                                    <dl className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
+                                                    <dl className="grid grid-cols-2 gap-3 my-4 sm:grid-cols-3">
                                                         {[
                                                             ["Mecze", websiteMatchHistory.length],
                                                             [
@@ -882,31 +907,31 @@ const Player = () => {
                                                                 "KPR",
                                                                 websiteTotals.rounds > 0
                                                                     ? (websiteTotals.kills / websiteTotals.rounds).toFixed(2)
-                                                                    : "—",
+                                                                    : "-",
                                                             ],
                                                             [
                                                                 "DPR",
                                                                 websiteTotals.rounds > 0
                                                                     ? (websiteTotals.deaths / websiteTotals.rounds).toFixed(2)
-                                                                    : "—",
+                                                                    : "-",
                                                             ],
                                                             [
                                                                 "ADR",
                                                                 websiteTotals.adrRounds > 0
                                                                     ? (websiteTotals.adrDamage / websiteTotals.adrRounds).toFixed(1)
-                                                                    : "—",
+                                                                    : "-",
                                                             ],
                                                             [
                                                                 "HS%",
                                                                 websiteTotals.kills > 0
                                                                     ? `${((websiteTotals.headshots / websiteTotals.kills) * 100).toFixed(1)}%`
-                                                                    : "—",
+                                                                    : "-",
                                                             ],
                                                             [
                                                                 "Rating (szacunek)",
                                                                 websiteTotals.ratingRounds > 0
                                                                     ? (websiteTotals.ratingTotal / websiteTotals.ratingRounds).toFixed(2)
-                                                                    : "—",
+                                                                    : "-",
                                                             ],
                                                         ].map(([label, value]) => (
                                                             <div key={label} className="bg-white/[0.03] px-3 py-3">
@@ -922,8 +947,8 @@ const Player = () => {
                                                             </div>
                                                         ))}
                                                     </dl>
-                                                    <p className="px-4 pb-3 text-xs text-gray-500">
-                                                        Statystyki obejmują zakończone mecze FACEIT zapisane na stronie, również starsze niż ostatnie 30 spotkań.
+                                                    <p className=" pb-3 text-xs text-gray-500">
+                                                        Statystyki obejmują zakończone mecze zapisane na stronie.
                                                         Rating jest szacunkiem w stylu HLTV, nie oficjalnym Ratingiem 2.0.
                                                     </p>
                                                     <ul className="divide-y divide-white/[0.06] border-t border-white/10">
@@ -932,7 +957,7 @@ const Player = () => {
                                                                 <Link
                                                                     to="/match"
                                                                     state={{ id: match.id }}
-                                                                    className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                                                                    className="flex items-center justify-between gap-3 py-3 transition-colors hover:bg-white/[0.03]"
                                                                 >
                                                                     <span className="min-w-0">
                                                                         <span className="block truncate text-sm font-medium text-white">
@@ -969,8 +994,8 @@ const Player = () => {
                                                 </>
                                             )}
                                         </section>
-                                    </div>
-                                )}
+                                    )}
+                                </>
                             </>
                         ) : (
                             <p className="px-4 py-5 text-sm text-gray-500">

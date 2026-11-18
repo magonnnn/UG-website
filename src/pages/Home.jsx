@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import cp from "../assets/clutchpoint.png";
 
 const ARTICLE_BATCH_SIZE = 4;
 
@@ -37,7 +38,7 @@ const Home = () => {
     return (
         <section className="min-w-0">
             <a href="https://www.clutchpoint-cp.com/" target="_blank" rel="noopener noreferrer">
-                <img src="src\assets\clutchpoint.png" alt="Hero Image" className="w-full h-auto mb-4" />
+                <img src={cp} alt="Hero Image" className="w-full h-auto mb-4" />
             </a>
             <section aria-labelledby="articles-heading">
                 {loading ? (

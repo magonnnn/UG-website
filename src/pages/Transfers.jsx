@@ -108,12 +108,6 @@ const Transfers = () => {
     return (
         <section className="min-w-0">
             <header className="mb-5 flex flex-row justify-between items-center gap-3">
-                <div className="flex flex-row items-center gap-3 ms-1">
-                    <img src={squadIcon} alt="" aria-hidden="true" className="h-5 w-5 invert opacity-70" />
-                    <h1 className="text-2xl font-bold text-white sm:text-3xl">
-                        Transfery
-                    </h1>
-                </div>
                 <div>
                     <label htmlFor="transfersFilter">Drużyna</label>
                     <select
@@ -124,7 +118,7 @@ const Transfers = () => {
                             setTeamFilter(event.target.value);
                             setCurrentPage(1);
                         }}
-                        className="w-full min-w-0 border p-2.5 text-sm"
+                        className="w-full min-w-0 border p-2.5 text-sm mt-2"
                     >
                         <option value="">Wszystkie drużyny</option>
                         {teams.map((team) => (

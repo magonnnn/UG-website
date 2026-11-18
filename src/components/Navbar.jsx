@@ -64,6 +64,7 @@ const Navbar = () => {
     const [profile, setProfile] = useState(null);
     const [authReady, setAuthReady] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [selectedPage, setSelectedPage] = useState("Start");
 
     const navItems = [
         { to: "/", label: "Start" },
@@ -81,11 +82,8 @@ const Navbar = () => {
         <Link
             key={to}
             to={to}
-            onClick={() => setMenuOpen(false)}
-            className={featured
-                ? `${mobile ? "w-full " : ""}shrink-0 rounded calendar-button px-3 py-2 text-sm bg-linear-to-br from-[#1E90FF] to-[#99BADD] font-black text-white shadow-sm transition-all duration-200 hover:brightness-110`
-                : `${mobile ? "w-full " : ""}shrink-0 rounded px-5 py-2 text-md font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white`
-            }
+            onClick={() => { setMenuOpen(false); setSelectedPage(label); }}
+            className={`${mobile ? "w-full " : ""} ${selectedPage === label ? "bg-white/10" : ""} shrink-0 rounded px-5 py-2 text-md font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white`}
         >
             {label}
         </Link>

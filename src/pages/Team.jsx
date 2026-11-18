@@ -276,11 +276,8 @@ const Team = () => {
 
     return (
         <section className="min-w-0">
-            <header className="mb-6">
-                <h1 className="break-words text-2xl font-bold text-white sm:text-3xl">{team.name}</h1>
-            </header>
 
-            <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-2 bg-bg border border-white/10">
                 <section className="min-w-0">
                     <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                         Profil

@@ -523,7 +523,7 @@ const Match = () => {
                                                         <th scope="col" className="px-3 py-2 text-right font-semibold">HS%</th>
                                                         <th scope="col" className="px-3 py-2 text-right font-semibold">K/D</th>
                                                         <th scope="col" className="px-3 py-2 text-right font-semibold" title="Nieoficjalny szacunek w stylu HLTV">
-                                                            Rating est.
+                                                            Rating
                                                         </th>
                                                     </tr>
                                                 </thead>

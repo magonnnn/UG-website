@@ -150,15 +150,6 @@ const Announcements = () => {
 
     return (
         <section className="min-w-0">
-            <header className="mb-5 flex items-center gap-3">
-                <img
-                    src={announcementsIcon}
-                    alt=""
-                    aria-hidden="true"
-                    className="h-5 w-5 invert opacity-70"
-                />
-                <h1 className="text-2xl font-bold text-white sm:text-3xl">Ogłoszenia</h1>
-            </header>
 
             {authReady && (user ? (
                 <form

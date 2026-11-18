@@ -936,7 +936,7 @@ const AdminPanel = () => {
         setNewTournamentDesc(tournament.description ?? "");
         setNewTournamentDate(localStart);
         setNewTournamentLink(tournament.link ?? "");
-        setTournamentFinished(tournament.finished)
+        setTournamentFinished(tournament.finished ?? "")
         setTournamentWinners(parseTournamentAchievements(
             tournamentAchievements.filter(
                 (achievement) => String(achievement.tournament_id) === tournamentId
@@ -3072,9 +3072,9 @@ const AdminPanel = () => {
                         <div className="flex items-center gap-2 mt-2">
                             <input
                                 type="checkbox"
+                                checked={tournamentFinished}
                                 name="tournament-finished"
                                 id="tournament-finished"
-                                value={tournamentFinished}
                                 onInput={tournamentFinished === false ? () => setTournamentFinished(true) : () => setTournamentFinished(false)}
                                 className="h-4 w-4 accent-green-600"
                             />

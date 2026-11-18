@@ -231,12 +231,6 @@ const Matches = () => {
     return (
         <section className="min-w-0">
             <header className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-                <div className="flex items-center gap-3">
-                    <img src={matchIcon} alt="" aria-hidden="true" className="h-5 w-5 invert opacity-70" />
-                    <h1 className="text-2xl font-bold text-white sm:text-3xl">
-                        Mecze
-                    </h1>
-                </div>
                 <div className="flex w-full flex-col gap-1 sm:max-w-xs">
                     <label htmlFor="matches-team-filter" className="text-xs font-medium text-gray-400">
                         Drużyna
@@ -270,7 +264,7 @@ const Matches = () => {
                 <div className="space-y-8">
                     {liveMatches.length > 0 && (
                         <section>
-                            <h2 className=" bg-bg w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                            <h2 className=" bg-bg-light w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                                 MECZE LIVE
                             </h2>
                             {renderGroupedMatches(liveMatches, true)}
@@ -278,7 +272,7 @@ const Matches = () => {
                     )}
                     {scheduledMatches.length > 0 && (
                         <section>
-                            <h2 className="bg-bg w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                            <h2 className="bg-bg-light w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                                 Nadchodzące mecze
                             </h2>
                             {renderGroupedMatches(scheduledMatches)}
@@ -286,7 +280,7 @@ const Matches = () => {
                     )}
                     {pageFinishedMatches.length > 0 && (
                         <section>
-                            <h2 className="bg-bg w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                            <h2 className="bg-bg-light w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                                 Zakończone mecze
                             </h2>
                             {renderGroupedMatches(pageFinishedMatches)}
