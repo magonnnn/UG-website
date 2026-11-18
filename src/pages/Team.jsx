@@ -21,6 +21,13 @@ const teamMatchSelect = `
     team_2:teams!matches_team_2_id_fkey(name, logo)
 `;
 
+const formatTournamentDate = (date) => {
+    const parsedDate = date ? new Date(date) : null;
+    return parsedDate && !Number.isNaN(parsedDate.getTime())
+        ? parsedDate.toLocaleDateString("pl-PL")
+        : "Data nieznana";
+};
+
 const loadTeamMatches = async (teamId) => {
     const [firstTeamMatches, secondTeamMatches] = await Promise.all([
         supabase
@@ -58,6 +65,8 @@ const Team = () => {
     const [loading, setLoading] = useState(true);
     const [matches, setMatches] = useState([]);
     const [matchesError, setMatchesError] = useState("");
+    const [tournamentAchievements, setTournamentAchievements] = useState([]);
+    const [tournamentAchievementsError, setTournamentAchievementsError] = useState("");
 
     useEffect(() => {
         let active = true;
@@ -70,7 +79,7 @@ const Team = () => {
             }
 
             setLoading(true);
-            const [teamResult, matchesResult] = await Promise.all([
+            const [teamResult, matchesResult, achievementsResult] = await Promise.all([
                 supabase.from("teams").select(`
                     id, 
                     name,
@@ -89,6 +98,18 @@ const Team = () => {
                     )
                 `).eq("id", teamId),
                 loadTeamMatches(teamId),
+                supabase
+                    .from("tournament_achievements")
+                    .select(`
+                        id,
+                        team_id,
+                        team_name,
+                        placement,
+                        roster,
+                        tournament:tournaments!inner(id, name, logo, starts)
+                    `)
+                    .eq("team_id", Number(teamId))
+                    .order("created_at", { ascending: false }),
             ]);
 
             if (!active) return;
@@ -107,6 +128,15 @@ const Team = () => {
             } else {
                 setMatches(matchesResult.data ?? []);
                 setMatchesError("");
+            }
+
+            if (achievementsResult.error) {
+                console.error("Error loading team tournament achievements:", achievementsResult.error.message);
+                setTournamentAchievementsError("Nie udało się załadować osiągnięć turniejowych.");
+                setTournamentAchievements([]);
+            } else {
+                setTournamentAchievements(achievementsResult.data ?? []);
+                setTournamentAchievementsError("");
             }
 
             setLoading(false);
@@ -220,6 +250,9 @@ const Team = () => {
 
 
     const team = teams[0];
+    const teamAchievements = tournamentAchievements.filter(
+        (achievement) => String(achievement.team_id) === String(team?.id)
+    );
     const profileUrl = supabase.storage.from("icons").getPublicUrl("profile-default.svg").data.publicUrl;
     const logoUrl = team?.logo
         ? supabase.storage.from("logos").getPublicUrl(team.logo).data.publicUrl
@@ -309,6 +342,93 @@ const Team = () => {
                         </div>
                     ) : (
                         <p className="px-4 py-5 text-sm text-gray-500">Brak graczy w składzie.</p>
+                    )}
+                </section>
+
+                <section className="min-w-0 lg:col-span-2">
+                    <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Osiągnięcia
+                    </h2>
+                    {tournamentAchievementsError ? (
+                        <p role="status" className="px-4 py-5 text-sm text-red-300">
+                            {tournamentAchievementsError}
+                        </p>
+                    ) : teamAchievements.length === 0 ? (
+                        <p className="px-4 py-5 text-sm text-gray-500">
+                            Brak zapisanych osiągnięć.
+                        </p>
+                    ) : (
+                        <ul className="grid gap-3 p-3 sm:grid-cols-2">
+                            {teamAchievements.map((achievement) => {
+                                const tournament = achievement.tournament;
+                                const logoUrl = tournament?.logo
+                                    ? supabase.storage.from("tournaments").getPublicUrl(tournament.logo).data.publicUrl
+                                    : null;
+                                const rosterSnapshot = Array.isArray(achievement.roster)
+                                    ? achievement.roster
+                                    : [];
+
+                                return (
+                                    <li
+                                        key={achievement.id}
+                                        className="min-w-0 border border-white/10 bg-black/10 p-3"
+                                    >
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            {logoUrl ? (
+                                                <img src={logoUrl} alt="" className="h-12 w-12 shrink-0 object-contain" />
+                                            ) : (
+                                                <span className="flex h-12 w-12 shrink-0 items-center justify-center bg-bg-light text-lg font-bold text-gray-500">
+                                                    {tournament?.name?.charAt(0)?.toUpperCase() ?? "?"}
+                                                </span>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="break-words text-sm font-semibold text-white">
+                                                    {tournament?.name ?? "Usunięty turniej"}
+                                                </h3>
+                                            </div>
+                                            {achievement.placement && (
+                                                <span className="shrink-0 px-2 py-1 text-lg font-bold">
+                                                    {achievement.placement}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="mt-3 pt-3">
+                                            <h4 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                                                roster
+                                            </h4>
+                                            {rosterSnapshot.length > 0 ? (
+                                                <ul className="flex flex-wrap gap-1.5">
+                                                    {rosterSnapshot.map((player, index) => {
+                                                        const name = player?.name ?? "Nieznany gracz";
+                                                        return (
+                                                            <li key={`${player?.id ?? name}-${index}`}>
+                                                                {player?.id != null ? (
+                                                                    <Link
+                                                                        to="/player"
+                                                                        state={{ id: player.id }}
+                                                                        className="inline-flex max-w-full bg-white/5 px-2 py-1 text-xs text-gray-300 transition-colors hover:text-white"
+                                                                    >
+                                                                        {name}
+                                                                    </Link>
+                                                                ) : (
+                                                                    <span className="inline-flex max-w-full rounded bg-white/5 px-2 py-1 text-xs text-gray-400">
+                                                                        {name}
+                                                                    </span>
+                                                                )}
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
+                                            ) : (
+                                                <p className="text-xs text-gray-500">
+                                                    Brak zapisanego składu dla tego osiągnięcia.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     )}
                 </section>
 

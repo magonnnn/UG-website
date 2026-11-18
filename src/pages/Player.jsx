@@ -5,6 +5,13 @@ import redirectIcon from "../assets/redirect.svg";
 import faceitLogo from "../assets/faceit-logo.webp"
 import CoachBadge from "../components/CoachBadge";
 
+const formatTournamentDate = (date) => {
+    const parsedDate = date ? new Date(date) : null;
+    return parsedDate && !Number.isNaN(parsedDate.getTime())
+        ? parsedDate.toLocaleDateString("pl-PL")
+        : "Data nieznana";
+};
+
 const StatRing = ({ label, value, detail, color }) => {
     const safeValue = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
     const radius = 34;
@@ -50,6 +57,9 @@ const Player = () => {
     const [loading, setLoading] = useState(true);
     const [transfer, setTransfer] = useState({});
     const [teams, setTeams] = useState([]);
+    const [tournamentAchievements, setTournamentAchievements] = useState([]);
+    const [tournamentAchievementsLoading, setTournamentAchievementsLoading] = useState(false);
+    const [tournamentAchievementsError, setTournamentAchievementsError] = useState("");
     const [faceitPlayer, setFaceitPlayer] = useState({});
     const [recentStats, setRecentStats] = useState(null);
     const [recentStatsLoading, setRecentStatsLoading] = useState(false);
@@ -105,6 +115,53 @@ const Player = () => {
         }
 
         fetchUser();
+        return () => {
+            active = false;
+        };
+    }, [id]);
+
+    useEffect(() => {
+        let active = true;
+        const playerId = Number(id);
+
+        if (id == null || !Number.isSafeInteger(playerId)) {
+            return undefined;
+        }
+
+        const loadTournamentAchievements = async () => {
+            setTournamentAchievementsLoading(true);
+            setTournamentAchievementsError("");
+
+            const { data, error } = await supabase
+                .from("tournament_achievements")
+                .select(`
+                    id,
+                    team_id,
+                    team_source,
+                    team_name,
+                    placement,
+                    roster,
+                    tournament:tournaments!inner(id, name, logo, starts)
+                `)
+                .filter("roster", "cs", JSON.stringify([{ id: playerId }]))
+                .order("created_at", { ascending: false });
+
+            if (!active) return;
+
+            if (error) {
+                console.error("Error loading player tournament achievements:", error.message);
+                setTournamentAchievementsError("Nie udało się załadować osiągnięć turniejowych.");
+                setTournamentAchievements([]);
+            } else {
+                setTournamentAchievements(data ?? []);
+                setTournamentAchievementsError("");
+            }
+
+            setTournamentAchievementsLoading(false);
+        };
+
+        void loadTournamentAchievements();
+
         return () => {
             active = false;
         };
@@ -325,6 +382,12 @@ const Player = () => {
     const teamHistory = (player.team_history ?? [])
         .map((teamId) => teams.find((team) => team.id === Number(teamId)))
         .filter(Boolean);
+    const playerAchievements = tournamentAchievements.filter(
+        (achievement) => Array.isArray(achievement.roster) &&
+            achievement.roster.some((rosterPlayer) =>
+                rosterPlayer?.id != null && String(rosterPlayer.id) === String(player.id)
+            )
+    );
 
     const profileTeams = [
         player.current_team,
@@ -550,6 +613,77 @@ const Player = () => {
                         </div>
                     ) : (
                         <p className="px-4 py-5 text-sm text-gray-500">Brak historii drużyn.</p>
+                    )}
+                    <h2 className="border-b border-white/10 px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Osiągnięcia
+                    </h2>
+                    {tournamentAchievementsLoading ? (
+                        <p className="px-4 py-5 text-sm text-gray-500">Ładowanie osiągnięć...</p>
+                    ) : tournamentAchievementsError ? (
+                        <p role="status" className="px-4 py-5 text-sm text-red-300">
+                            {tournamentAchievementsError}
+                        </p>
+                    ) : playerAchievements.length === 0 ? (
+                        <p className="px-4 py-5 text-sm text-gray-500">
+                            Brak zapisanych osiągnięć turniejowych.
+                        </p>
+                    ) : (
+                        <ul className="space-y-1">
+                            {playerAchievements.map((achievement) => {
+                                const tournament = achievement.tournament;
+                                const logoUrl = tournament?.logo
+                                    ? supabase.storage.from("tournaments").getPublicUrl(tournament.logo).data.publicUrl
+                                    : null;
+                                const achievementTeam = achievement.team_id != null
+                                    ? teams.find((team) =>
+                                        String(team.id) === String(achievement.team_id)
+                                    )
+                                    : null;
+                                const teamName = achievementTeam?.name ??
+                                    achievement.team_name ??
+                                    "Drużyna usunięta";
+
+                                return (
+                                    <li
+                                        key={achievement.id}
+                                        className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]"
+                                    >
+                                        {logoUrl ? (
+                                            <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 object-contain" />
+                                        ) : (
+                                            <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-bg-light text-sm font-bold text-gray-500">
+                                                {tournament?.name?.charAt(0)?.toUpperCase() ?? "?"}
+                                            </span>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="break-words text-sm font-medium text-white">
+                                                {tournament?.name ?? "Usunięty turniej"}
+                                            </h3>
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                {achievementTeam ? (
+                                                    <Link
+                                                        to="/team"
+                                                        state={{ id: achievementTeam.id }}
+                                                        className="text-gray-300 hover:text-white"
+                                                    >
+                                                        {teamName}
+                                                    </Link>
+                                                ) : (
+                                                    <span>{teamName}</span>
+                                                )}
+                                                <span className="px-1.5">·</span>
+                                                <time>{formatTournamentDate(tournament?.starts)}</time>
+                                            </p>
+                                        </div>
+                                        {achievement.placement && (
+                                            <span className="shrink-0 rounded px-2 py-1 text-lg font-bold">
+                                                {achievement.placement}
+                                            </span>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     )}
                 </section>
 

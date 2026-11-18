@@ -6,7 +6,7 @@ const Row = ({ id, team, points, roster, logo, ite, coach }) => {
     const coachIsInRoster = (roster ?? []).some((name) => name === coach?.name);
     const rosterTitle = [
         rosterNames,
-        coach?.name && !coachIsInRoster ? `${coach.name} — Coach` : "",
+        coach?.name && !coachIsInRoster ? `${coach.name} - Coach` : "",
     ].filter(Boolean).join(", ");
 
     return (

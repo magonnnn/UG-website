@@ -132,10 +132,29 @@ const emptyRoster = {
 const teamPlayerIds = (team) =>
     Array.from({ length: 5 }, (_, index) => team?.[`player${index + 1}`] ?? null);
 
+const parseTournamentAchievements = (achievements) =>
+    (achievements ?? []).map((achievement) => ({
+        id: crypto.randomUUID(),
+        achievementId: achievement.id,
+        kind: achievement.team_source === "custom" ? "custom" : "team",
+        teamId: achievement.team_source === "linked"
+            ? achievement.team_id == null
+                ? "__deleted__"
+                : String(achievement.team_id)
+            : "",
+        teamName: achievement.team_source === "custom" ? achievement.team_name : "",
+        teamNameSnapshot: achievement.team_name ?? "",
+        placement: achievement.placement ?? "",
+        rosterSnapshot: Array.isArray(achievement.roster) ? achievement.roster : [],
+        rosterPlayerIds: (achievement.roster ?? [])
+            .flatMap((player) => Number.isSafeInteger(player?.id) ? [String(player.id)] : []),
+    }));
+
 const AdminPanel = () => {
     const [teams, setTeams] = useState([]);
     const [players, setPlayers] = useState([])
     const [tournaments, setTournaments] = useState([]);
+    const [tournamentAchievements, setTournamentAchievements] = useState([]);
     const [matches, setMatches] = useState([]);
     const [pendingAnnouncements, setPendingAnnouncements] = useState([]);
     const [approvingAnnouncementId, setApprovingAnnouncementId] = useState(null);
@@ -173,6 +192,8 @@ const AdminPanel = () => {
     const [newTournamentLink, setNewTournamentLink] = useSessionState("admin-new-tournament-link", "");
     const [selectedTournamentId, setSelectedTournamentId] = useSessionState("admin-selected-tournament-id", "");
     const [tournamentLogoFile, setTournamentLogoFile] = useSessionFileState("admin-tournament-logo");
+    const [tournamentFinished, setTournamentFinished] = useSessionState("admin-tournament-finished", "");
+    const [tournamentWinners, setTournamentWinners] = useSessionState("admin-tournament-winners", []);
 
 
     const [, setRosterInputs] = useSessionState(
@@ -328,7 +349,7 @@ const AdminPanel = () => {
     }, [loadPlayers]);
 
     const loadMatchesAndTournaments = useCallback(async () => {
-        const [matchesResult, tournamentsResult] = await Promise.all([
+        const [matchesResult, tournamentsResult, achievementsResult] = await Promise.all([
             supabase
                 .from("matches")
                 .select(`
@@ -348,6 +369,10 @@ const AdminPanel = () => {
                 .is("faceit_match_id", null)
                 .order("time", { ascending: false }),
             supabase.from("tournaments").select("*").order("name"),
+            supabase
+                .from("tournament_achievements")
+                .select("id, tournament_id, team_id, team_source, team_name, placement, roster")
+                .order("id", { ascending: true }),
         ]);
 
         if (matchesResult.error) {
@@ -364,7 +389,14 @@ const AdminPanel = () => {
             setTournaments(tournamentsResult.data ?? []);
         }
 
-        return !matchesResult.error && !tournamentsResult.error;
+        if (achievementsResult.error) {
+            console.error("Error loading tournament achievements:", achievementsResult.error.message);
+            showMessage(`Błąd ładowania osiągnięć turniejowych: ${achievementsResult.error.message}`, "error");
+        } else {
+            setTournamentAchievements(achievementsResult.data ?? []);
+        }
+
+        return !matchesResult.error && !tournamentsResult.error && !achievementsResult.error;
     }, []);
 
     useEffect(() => {
@@ -876,6 +908,8 @@ const AdminPanel = () => {
         setNewTournamentDesc("");
         setNewTournamentDate("");
         setNewTournamentLink("");
+        setTournamentFinished(false)
+        setTournamentWinners([]);
         setTournamentLogoFile(null);
     };
 
@@ -902,7 +936,43 @@ const AdminPanel = () => {
         setNewTournamentDesc(tournament.description ?? "");
         setNewTournamentDate(localStart);
         setNewTournamentLink(tournament.link ?? "");
+        setTournamentFinished(tournament.finished)
+        setTournamentWinners(parseTournamentAchievements(
+            tournamentAchievements.filter(
+                (achievement) => String(achievement.tournament_id) === tournamentId
+            )
+        ));
         setTournamentLogoFile(null);
+    };
+
+    const addTournamentWinner = () => {
+        setTournamentWinners((current) => [
+            ...current,
+            {
+                id: crypto.randomUUID(),
+                achievementId: crypto.randomUUID(),
+                kind: "team",
+                teamId: "",
+                teamName: "",
+                placement: "",
+                rosterSnapshot: null,
+                rosterPlayerIds: [],
+            },
+        ]);
+    };
+
+    const updateTournamentWinner = (winnerId, updates) => {
+        setTournamentWinners((current) =>
+            current.map((winner) =>
+                winner.id === winnerId ? { ...winner, ...updates } : winner
+            )
+        );
+    };
+
+    const removeTournamentWinner = (winnerId) => {
+        setTournamentWinners((current) =>
+            current.filter((winner) => winner.id !== winnerId)
+        );
     };
 
     const saveTournament = async (event) => {
@@ -953,6 +1023,89 @@ const AdminPanel = () => {
             }
         }
 
+        const winnerRows = Array.isArray(tournamentWinners) ? tournamentWinners : [];
+        const preparedWinners = [];
+
+        for (const winner of winnerRows) {
+            const placement = String(winner.placement ?? "").trim() || null;
+
+            if (winner.kind === "team") {
+                if (winner.teamId === "__deleted__" && winner.teamNameSnapshot) {
+                    preparedWinners.push({
+                        achievementId: winner.achievementId ?? winner.id,
+                        winnerId: winner.id,
+                        teamId: null,
+                        teamSource: "linked",
+                        teamName: winner.teamNameSnapshot,
+                        placement,
+                        roster: Array.isArray(winner.rosterSnapshot)
+                            ? winner.rosterSnapshot
+                            : [],
+                    });
+                    continue;
+                }
+
+                if (!winner.teamId) {
+                    if (placement) {
+                        showMessage("Wybierz drużynę dla każdego podanego miejsca.", "error");
+                        return;
+                    }
+                    continue;
+                }
+
+                const team = teams.find((item) => String(item.id) === winner.teamId);
+                const teamId = Number(team?.id ?? winner.teamId);
+                if (!Number.isSafeInteger(teamId)) {
+                    showMessage("Wybrana drużyna ma nieprawidłowy identyfikator.", "error");
+                    return;
+                }
+
+                preparedWinners.push({
+                    achievementId: winner.achievementId ?? winner.id,
+                    winnerId: winner.id,
+                    teamId,
+                    teamSource: "linked",
+                    teamName: team?.name ?? winner.teamNameSnapshot ?? `Drużyna #${teamId}`,
+                    placement,
+                    roster: Array.isArray(winner.rosterSnapshot)
+                        ? winner.rosterSnapshot
+                        : team
+                            ? null
+                            : [],
+                });
+            } else if (winner.kind === "custom") {
+                const teamName = String(winner.teamName ?? "").trim();
+                if (!teamName) {
+                    if (placement) {
+                        showMessage("Podaj nazwę drużyny dla każdego podanego miejsca.", "error");
+                        return;
+                    }
+                    continue;
+                }
+
+                const rosterPlayerIds = Array.isArray(winner.rosterPlayerIds)
+                    ? winner.rosterPlayerIds.map(Number)
+                    : [];
+                if (rosterPlayerIds.some((playerId) => !Number.isSafeInteger(playerId))) {
+                    showMessage("Wybierz prawidłowych graczy do składu osiągnięcia.", "error");
+                    return;
+                }
+
+                preparedWinners.push({
+                    achievementId: winner.achievementId ?? winner.id,
+                    winnerId: winner.id,
+                    teamId: null,
+                    teamSource: "custom",
+                    teamName,
+                    placement,
+                    roster: Array.isArray(winner.rosterSnapshot)
+                        ? winner.rosterSnapshot
+                        : null,
+                    rosterPlayerIds,
+                });
+            }
+        }
+
         let logoPath = tournaments.find(
             (tournament) => String(tournament.id) === selectedTournamentId
         )?.logo ?? null;
@@ -981,6 +1134,150 @@ const AdminPanel = () => {
         setLoading(true);
         clearMessage();
 
+        const teamsToSnapshot = [...new Set(
+            preparedWinners
+                .filter((winner) =>
+                    winner.teamSource === "linked" &&
+                    winner.teamId != null &&
+                    winner.roster === null
+                )
+                .map((winner) => winner.teamId)
+        )];
+        const rosterByTeamId = new Map();
+        const rosterByWinnerId = new Map();
+
+        if (teamsToSnapshot.length > 0) {
+            const { data: snapshotTeams, error: snapshotTeamsError } = await supabase
+                .from("teams")
+                .select("id, name, player1, player2, player3, player4, player5")
+                .in("id", teamsToSnapshot);
+
+            if (snapshotTeamsError) {
+                console.error("Error loading tournament winner rosters:", snapshotTeamsError.message);
+                showMessage(`Błąd pobierania składów drużyn: ${snapshotTeamsError.message}`, "error");
+                setLoading(false);
+                return;
+            }
+
+            const snapshotTeamsById = new Map(
+                (snapshotTeams ?? []).map((team) => [String(team.id), team])
+            );
+            if (teamsToSnapshot.some((teamId) => !snapshotTeamsById.has(String(teamId)))) {
+                showMessage("Jedna z wybranych drużyn już nie istnieje. Odśwież formularz i spróbuj ponownie.", "error");
+                setLoading(false);
+                return;
+            }
+
+            const snapshotPlayerIds = [...new Set(
+                (snapshotTeams ?? []).flatMap((team) => teamPlayerIds(team))
+                    .filter((playerId) => playerId != null && String(playerId).trim() !== "")
+                    .map(Number)
+            )];
+            if (snapshotPlayerIds.some((playerId) => !Number.isSafeInteger(playerId))) {
+                showMessage("Nie można zapisać składu: identyfikator gracza jest nieprawidłowy.", "error");
+                setLoading(false);
+                return;
+            }
+
+            let snapshotPlayers = [];
+            if (snapshotPlayerIds.length > 0) {
+                const { data, error: snapshotPlayersError } = await supabase
+                    .from("players")
+                    .select("id, name")
+                    .in("id", snapshotPlayerIds);
+
+                if (snapshotPlayersError) {
+                    console.error("Error loading tournament winner roster players:", snapshotPlayersError.message);
+                    showMessage(`Błąd pobierania graczy ze składu: ${snapshotPlayersError.message}`, "error");
+                    setLoading(false);
+                    return;
+                }
+                snapshotPlayers = data ?? [];
+            }
+
+            const snapshotPlayersById = new Map(
+                snapshotPlayers.map((player) => [String(player.id), player])
+            );
+
+            (snapshotTeams ?? []).forEach((team) => {
+                const roster = teamPlayerIds(team).flatMap((rawPlayerId) => {
+                    const playerId = rawPlayerId == null || String(rawPlayerId).trim() === ""
+                        ? null
+                        : rawPlayerId;
+                    if (playerId == null) return [];
+
+                    const player = snapshotPlayersById.get(String(playerId));
+                    return [{
+                        id: Number(playerId),
+                        name: player?.name ?? null,
+                    }];
+                });
+                rosterByTeamId.set(String(team.id), {
+                    name: team.name,
+                    roster,
+                });
+            });
+        }
+
+        const customWinnersToSnapshot = preparedWinners.filter(
+            (winner) => winner.teamSource === "custom" && winner.roster === null
+        );
+        const customRosterPlayerIds = [...new Set(
+            customWinnersToSnapshot.flatMap((winner) => winner.rosterPlayerIds)
+        )];
+        if (customRosterPlayerIds.length > 0) {
+            const { data: customRosterPlayers, error: customRosterPlayersError } = await supabase
+                .from("players")
+                .select("id, name")
+                .in("id", customRosterPlayerIds);
+
+            if (customRosterPlayersError) {
+                console.error("Error loading custom tournament roster players:", customRosterPlayersError.message);
+                showMessage(`Błąd pobierania graczy do składu: ${customRosterPlayersError.message}`, "error");
+                setLoading(false);
+                return;
+            }
+
+            const customRosterPlayersById = new Map(
+                (customRosterPlayers ?? []).map((player) => [String(player.id), player])
+            );
+            if (customRosterPlayerIds.some((playerId) => !customRosterPlayersById.has(String(playerId)))) {
+                showMessage("Jeden z wybranych graczy nie istnieje już. Odśwież formularz i spróbuj ponownie.", "error");
+                setLoading(false);
+                return;
+            }
+
+            customWinnersToSnapshot.forEach((winner) => {
+                const roster = winner.rosterPlayerIds.map((playerId) => {
+                    const player = customRosterPlayersById.get(String(playerId));
+                    return { id: Number(player.id), name: player.name };
+                });
+                rosterByWinnerId.set(winner.winnerId, roster);
+            });
+        } else {
+            customWinnersToSnapshot.forEach((winner) => {
+                rosterByWinnerId.set(winner.winnerId, []);
+            });
+        }
+
+        const achievementData = preparedWinners.map((winner) => {
+            const teamSnapshot = winner.teamId == null
+                ? null
+                : rosterByTeamId.get(String(winner.teamId));
+            return {
+                id: winner.achievementId,
+                team_id: winner.teamId,
+                team_source: winner.teamSource,
+                team_name: teamSnapshot?.name ?? winner.teamName,
+                placement: winner.placement,
+                roster: winner.roster ??
+                    (winner.teamSource === "linked"
+                        ? teamSnapshot?.roster
+                        : rosterByWinnerId.get(winner.winnerId)) ??
+                    [],
+            };
+        });
+
         if (tournamentLogoFile) {
             const { error: uploadError } = await supabase.storage
                 .from("tournaments")
@@ -1005,6 +1302,7 @@ const AdminPanel = () => {
             description,
             link: link || null,
             logo: logoPath,
+            finished: tournamentFinished,
         };
 
         const result = selectedTournamentId
@@ -1012,7 +1310,9 @@ const AdminPanel = () => {
                 .from("tournaments")
                 .update(tournamentData)
                 .eq("id", selectedTournamentId)
-            : await supabase.from("tournaments").insert(tournamentData);
+                .select("id")
+                .single()
+            : await supabase.from("tournaments").insert(tournamentData).select("id").single();
 
         if (result.error) {
             console.error("Error saving tournament:", result.error.message);
@@ -1028,6 +1328,66 @@ const AdminPanel = () => {
             showMessage(`Błąd zapisywania turnieju: ${result.error.message}`, "error");
             setLoading(false);
             return;
+        }
+
+        const savedTournamentId = result.data.id;
+        setTournaments((current) => [
+            ...current.filter((tournament) => String(tournament.id) !== String(savedTournamentId)),
+            { ...tournamentData, id: savedTournamentId },
+        ]);
+        setTournamentLogoFile(null);
+
+        if (!selectedTournamentId) {
+            setSelectedTournamentId(String(savedTournamentId));
+        }
+
+        const achievementRows = achievementData.map((achievement) => ({
+            ...achievement,
+            tournament_id: savedTournamentId,
+        }));
+        let saveAchievementsError = null;
+        if (achievementRows.length > 0) {
+            const { error } = await supabase
+                .from("tournament_achievements")
+                .upsert(achievementRows, { onConflict: "id" });
+            saveAchievementsError = error;
+        }
+
+        if (saveAchievementsError) {
+            console.error("Error saving tournament achievements:", saveAchievementsError.message);
+            showMessage(
+                `Turniej został zapisany, ale nie udało się zapisać osiągnięć: ${saveAchievementsError.message}`,
+                "error"
+            );
+            setLoading(false);
+            return;
+        }
+
+        const retainedAchievementIds = new Set(
+            achievementRows.map((achievement) => String(achievement.id))
+        );
+        const removedAchievementIds = tournamentAchievements
+            .filter((achievement) =>
+                String(achievement.tournament_id) === String(savedTournamentId) &&
+                !retainedAchievementIds.has(String(achievement.id))
+            )
+            .map((achievement) => achievement.id);
+
+        if (removedAchievementIds.length > 0) {
+            const { error: removeAchievementsError } = await supabase
+                .from("tournament_achievements")
+                .delete()
+                .in("id", removedAchievementIds);
+
+            if (removeAchievementsError) {
+                console.error("Error removing tournament achievements:", removeAchievementsError.message);
+                showMessage(
+                    `Turniej został zapisany, ale nie udało się usunąć części osiągnięć: ${removeAchievementsError.message}`,
+                    "error"
+                );
+                setLoading(false);
+                return;
+            }
         }
 
         const refreshed = await loadMatchesAndTournaments();
@@ -2541,6 +2901,155 @@ const AdminPanel = () => {
                             />
                         </div>
 
+                        <section className="mt-4 border border-white/10">
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-3 py-3">
+                                <div>
+                                    <h2 className="text-sm font-semibold text-white">Osiągnięcia turniejowe</h2>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Miejsce jest opcjonalne. Skład drużyny zapisuje się jako historyczny snapshot.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={addTournamentWinner}
+                                    disabled={loading}
+                                    className="rounded border border-white/10 px-3 py-2 text-xs font-semibold text-gray-200 transition-colors hover:bg-white/5 disabled:opacity-50"
+                                >
+                                    Dodaj osiągnięcie
+                                </button>
+                            </div>
+                            <div className="space-y-3 p-3">
+                                {tournamentWinners.map((winner, index) => (
+                                    <div
+                                        key={winner.id}
+                                        className="grid min-w-0 gap-2 border border-white/10 bg-black/10 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                                    >
+                                        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
+                                            <select
+                                                aria-label={`Typ drużyny osiągnięcia ${index + 1}`}
+                                                value={winner.kind}
+                                                disabled={loading}
+                                                onChange={(event) => updateTournamentWinner(winner.id, {
+                                                    kind: event.target.value,
+                                                    teamId: "",
+                                                    teamName: "",
+                                                    teamNameSnapshot: "",
+                                                    rosterSnapshot: null,
+                                                    rosterPlayerIds: [],
+                                                })}
+                                                className="w-full min-w-0 border p-2.5 text-sm"
+                                            >
+                                                <option value="team">Drużyna z serwisu</option>
+                                                <option value="custom">Nazwa własna</option>
+                                            </select>
+                                            {winner.kind === "team" ? (
+                                                <select
+                                                    aria-label={`Drużyna osiągnięcia ${index + 1}`}
+                                                    value={winner.teamId}
+                                                    disabled={loading}
+                                                    onChange={(event) => updateTournamentWinner(winner.id, {
+                                                        teamId: event.target.value,
+                                                        rosterSnapshot: null,
+                                                    })}
+                                                    className="w-full min-w-0 border p-2.5 text-sm"
+                                                >
+                                                    <option value="">Wybierz drużynę</option>
+                                                    {winner.teamId && !teams.some(
+                                                        (team) => String(team.id) === winner.teamId
+                                                    ) && (
+                                                            <option value={winner.teamId}>
+                                                                {winner.teamNameSnapshot || `Drużyna #${winner.teamId}`} (niedostępna)
+                                                            </option>
+                                                        )}
+                                                    {teams.map((team) => (
+                                                        <option key={team.id} value={String(team.id)}>
+                                                            {team.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    aria-label={`Nazwa drużyny osiągnięcia ${index + 1}`}
+                                                    value={winner.teamName}
+                                                    disabled={loading}
+                                                    onChange={(event) => updateTournamentWinner(winner.id, {
+                                                        teamName: event.target.value,
+                                                    })}
+                                                    placeholder="Nazwa drużyny..."
+                                                    className="w-full min-w-0 border p-2.5 text-sm"
+                                                />
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            aria-label={`Miejsce lub wynik osiągnięcia ${index + 1} (opcjonalnie)`}
+                                            value={winner.placement}
+                                            disabled={loading}
+                                            onChange={(event) => updateTournamentWinner(winner.id, {
+                                                placement: event.target.value,
+                                            })}
+                                            placeholder="Miejsce lub wynik (opcjonalnie)"
+                                            className="w-full min-w-0 border p-2.5 text-sm"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeTournamentWinner(winner.id)}
+                                            disabled={loading}
+                                            aria-label={`Usuń osiągnięcie ${index + 1}`}
+                                            className="rounded border border-red-800/60 px-3 py-2 text-xs font-semibold text-red-300 transition-colors hover:bg-red-950/40 disabled:opacity-50"
+                                        >
+                                            Usuń
+                                        </button>
+                                        {winner.kind === "custom" && (
+                                            <fieldset className="min-w-0 sm:col-span-3">
+                                                <legend className="mb-2 text-xs font-medium text-gray-400">
+                                                    Skład historyczny (opcjonalnie)
+                                                </legend>
+                                                {players.length > 0 ? (
+                                                    <div className="grid max-h-40 gap-1 overflow-y-auto border border-white/10 bg-bg p-2 sm:grid-cols-2">
+                                                        {players.map((player) => {
+                                                            const playerId = String(player.id);
+                                                            const selected = winner.rosterPlayerIds?.includes(playerId) ?? false;
+                                                            return (
+                                                                <label
+                                                                    key={player.id}
+                                                                    className="flex min-w-0 items-center gap-2 px-2 py-1 text-xs text-gray-300 hover:bg-white/5"
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selected}
+                                                                        disabled={loading}
+                                                                        onChange={(event) => {
+                                                                            const currentIds = winner.rosterPlayerIds ?? [];
+                                                                            const nextIds = event.target.checked
+                                                                                ? [...currentIds, playerId]
+                                                                                : currentIds.filter((id) => id !== playerId);
+                                                                            updateTournamentWinner(winner.id, {
+                                                                                rosterPlayerIds: nextIds,
+                                                                                rosterSnapshot: null,
+                                                                            });
+                                                                        }}
+                                                                        className="h-4 w-4 shrink-0 accent-primary"
+                                                                    />
+                                                                    <span className="truncate">{player.name}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-gray-500">Brak graczy do dodania do składu.</p>
+                                                )}
+                                            </fieldset>
+                                        )}
+                                    </div>
+                                ))}
+                                {tournamentWinners.length === 0 && (
+                                    <p className="text-sm text-gray-500">Brak dodanych osiągnięć.</p>
+                                )}
+                            </div>
+                        </section>
+
                         <label htmlFor="tournament-logo" className="mb-2 mt-4 block text-sm text-gray-300">
                             Logo turnieju (PNG, JPG lub WebP, maks. 10 MB)
                         </label>
@@ -2559,6 +3068,18 @@ const AdminPanel = () => {
                                     Obecne logo pozostanie bez zmian, jeśli nie wybierzesz nowego pliku.
                                 </p>
                             )}
+
+                        <div className="flex items-center gap-2 mt-2">
+                            <input
+                                type="checkbox"
+                                name="tournament-finished"
+                                id="tournament-finished"
+                                value={tournamentFinished}
+                                onInput={tournamentFinished === false ? () => setTournamentFinished(true) : () => setTournamentFinished(false)}
+                                className="h-4 w-4 accent-green-600"
+                            />
+                            <label htmlFor="tournament-finished" className="flex gap-2 items-center block text-sm text-gray-300">Turniej zakończony</label>
+                        </div>
 
                         <button
                             type="submit"
