@@ -159,8 +159,8 @@ const TopBar = () => {
                             >
 
                                 <div className="flex flex-col min-w-0 gap-3">
-                                    <div className="flex min-w-0 flex-1 flex-row gap-1 text-sm text-white justify-between">
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex min-w-0 flex-1 flex-row gap-1 text-sm text-white justify-between items-center">
+                                        <div className={`flex items-center gap-2 ${!isLive ? "block" : "hidden"}`}>
                                             {!isLive && (
                                                 <div className="flex flex-row items-center gap-2">
                                                     <img
@@ -194,7 +194,7 @@ const TopBar = () => {
 
                                         >
                                             <p className="bg-red-700 aspect-square rounded-full h-3 animate-pulse [animation-duration:_1.5s]"></p>
-                                            LIVE
+                                            <p>LIVE</p>
                                         </span>
                                         <span
                                             className="max-w-24 justify-self-end truncate text-right text-xs text-gray-500"

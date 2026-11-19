@@ -24,12 +24,6 @@ const partners = [
         offer: "Polska scena CS2 w jednym miejscu"
     },
     {
-        name: "DreamMachines",
-        href: "https://dreammachines.pl/",
-        logo: dreammachines,
-        offer: "Sprzęt gamingowy",
-    },
-    {
         name: "Fragujemy",
         href: "https://fragujemy.com/",
         logo: fragujemy,

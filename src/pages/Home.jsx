@@ -2,14 +2,30 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import cp from "../assets/clutchpoint.png";
+import fragujemy from "../assets/fragujemy-baner.png";
 
 const ARTICLE_BATCH_SIZE = 4;
+const BANNERS = [
+    {
+        name: "clutchpoint",
+        link: "https://www.clutchpoint-cp.com/",
+        banner: cp,
+        num: 1,
+    },
+    {
+        name: "fragujemy",
+        link: "https://www.fragujemy.com/",
+        banner: fragujemy,
+        num: 2,
+    }
+]
 
 const Home = () => {
     const [articles, setArticles] = useState([]);
     const [visibleArticleCount, setVisibleArticleCount] = useState(ARTICLE_BATCH_SIZE);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [bannerNum, setBannerNum] = useState(1);
 
     useEffect(() => {
         const loadArticles = async () => {
@@ -35,11 +51,44 @@ const Home = () => {
     const getCoverUrl = (coverImage) =>
         supabase.storage.from("articles").getPublicUrl(coverImage).data.publicUrl;
 
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setBannerNum(prev => prev === 1 ? 2 : 1);
+        }, 8000)
+        return () => clearInterval(interval)
+    }, [])
+
     return (
         <section className="min-w-0">
-            <a href="https://www.clutchpoint-cp.com/" target="_blank" rel="noopener noreferrer">
-                <img src={cp} alt="Hero Image" className="w-full h-auto mb-4" />
-            </a>
+            <div className="relative hidden md:block">
+                {BANNERS.map((banner) => (
+                    <a
+                        key={banner.num}
+                        href={banner.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`relative ${bannerNum === banner.num ? "block" : "hidden"}`}
+                    >
+                        <img
+                            src={banner.banner}
+                            alt={banner.name}
+                            className="mb-4 h-auto w-full border border-white/10 hover:opacity-70 transition-all"
+                        />
+                    </a>
+                ))}
+                <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+                    {BANNERS.map((banner) => (
+                        <button
+                            key={banner.num}
+                            type="button"
+                            aria-label={`Pokaż baner ${banner.name}`}
+                            aria-pressed={bannerNum === banner.num}
+                            onClick={() => setBannerNum(banner.num)}
+                            className={`aspect-square h-3 rounded-full border border-white/70 transition-all hover:bg-white ${bannerNum === banner.num ? "w-6 bg-white" : "w-3 bg-white/40"}`}
+                        />
+                    ))}
+                </div>
+            </div>
             <section aria-labelledby="articles-heading">
                 {loading ? (
                     <p className="text-sm text-gray-400">Ładowanie artykułów...</p>

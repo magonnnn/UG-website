@@ -85,9 +85,6 @@ const Table = () => {
     return (
         <section className="min-w-0">
             <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-                <div>
-                    <h1 className="text-2xl font-bold text-white sm:text-3xl">Gracze</h1>
-                </div>
                 <div className="grid w-full gap-3 sm:max-w-md sm:grid-cols-2">
                     <div className="flex min-w-0 flex-col gap-1">
                         <label htmlFor="search" className="flex items-center gap-1.5 text-xs font-medium text-gray-400">

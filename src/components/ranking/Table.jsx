@@ -46,9 +46,6 @@ const Table = () => {
     return (
         <section className="min-w-0">
             <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-                <div>
-                    <h1 className="text-2xl font-bold text-white sm:text-3xl">Ranking drużyn</h1>
-                </div>
                 <form className="flex w-full flex-col gap-1 sm:max-w-xs">
                     <label htmlFor="search" className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
                         <img src={filterIcon} alt="" aria-hidden="true" className="h-3.5 w-3.5 invert opacity-60" />

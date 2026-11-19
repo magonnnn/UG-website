@@ -143,7 +143,7 @@ const LeftBar = () => {
                     className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300 transition-colors hover:text-white"
                 >
                     <img src={squadIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
-                    TRANSFERS
+                    TRANSFERY
                 </Link>
                 {loading ? (
                     <p className="px-4 py-5 text-sm text-gray-400">Ładowanie transferów...</p>

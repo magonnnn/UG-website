@@ -485,7 +485,7 @@ const Match = () => {
                             Statystyki graczy nie są dostępne dla tego meczu.
                         </p>
                     ) : (
-                        <div className="mt-4 grid gap-5">
+                        <div className="mt-4 grid min-w-0 gap-5">
                             <p className="text-xs text-gray-500">
                                 Rating to szacunek w stylu HLTV, a nie oficjalny Rating 2.0.
                             </p>
@@ -498,6 +498,7 @@ const Match = () => {
                                 <section
                                     key={team.id ?? team.label}
                                     aria-labelledby={`match-leaderboard-team-${teamIndex}`}
+                                    className="min-w-0"
                                 >
                                     <h3
                                         id={`match-leaderboard-team-${teamIndex}`}
@@ -510,7 +511,7 @@ const Match = () => {
                                             Brak statystyk dla tej drużyny.
                                         </p>
                                     ) : (
-                                        <div className="overflow-x-auto">
+                                        <div className="w-full min-w-0 overflow-x-auto">
                                             <table className="w-full min-w-[640px] text-left text-sm">
                                                 <thead className="text-xs uppercase tracking-wide text-gray-500">
                                                     <tr className="border-b border-white/10">

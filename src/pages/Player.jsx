@@ -735,7 +735,7 @@ const Player = () => {
                                                     ["HS", `${recentStats.headshotPercentage.toFixed(1)}%`],
                                                     ["Wygrane", `${recentStats.winPercentage.toFixed(1)}%`],
                                                     [
-                                                        "Rating (szacunek)",
+                                                        "Rating (szacunkowo)",
                                                         recentStats.ratingEstimate != null
                                                             ? recentStats.ratingEstimate.toFixed(2)
                                                             : "-",
@@ -928,7 +928,7 @@ const Player = () => {
                                                                     : "-",
                                                             ],
                                                             [
-                                                                "Rating (szacunek)",
+                                                                "Rating (szacunkowo)",
                                                                 websiteTotals.ratingRounds > 0
                                                                     ? (websiteTotals.ratingTotal / websiteTotals.ratingRounds).toFixed(2)
                                                                     : "-",
@@ -937,7 +937,7 @@ const Player = () => {
                                                             <div key={label} className="bg-white/[0.03] px-3 py-3">
                                                                 <dt
                                                                     className="text-xs text-gray-500"
-                                                                    title={label === "Rating (szacunek)"
+                                                                    title={label === "Rating (szacunkowo)"
                                                                         ? "Nieoficjalny szacunek w stylu HLTV, nie Rating 2.0."
                                                                         : undefined}
                                                                 >
