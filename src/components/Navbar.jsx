@@ -71,11 +71,12 @@ const Navbar = () => {
         { to: "/ranking", label: "Ranking" },
         { to: "/players", label: "Gracze" },
         { to: "/matches", label: "Mecze" },
+        { to: "/results", label: "Wyniki" },
         { to: "/contact", label: "Kontakt" },
         { to: "/partners", label: "Partnerzy" },
         { to: "/tournaments", label: "Turnieje" },
         { to: "/announcements", label: "Ogłoszenia" },
-        { to: "/transfers", label: "Transfery" }
+        { to: "/transfers", label: "Transfery" },
     ];
 
     const renderNavLinks = (mobile = false) => navItems.map(({ to, label, featured }) => (

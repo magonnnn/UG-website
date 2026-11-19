@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import cp from "../assets/clutchpoint.png";
 import fragujemy from "../assets/fragujemy-baner.png";
+import clanarea from "../assets/clanarea-baner.png";
 
 const ARTICLE_BATCH_SIZE = 4;
 const BANNERS = [
@@ -17,6 +18,12 @@ const BANNERS = [
         link: "https://www.fragujemy.com/",
         banner: fragujemy,
         num: 2,
+    },
+    {
+        name: "clanarea",
+        link: "https://clanarea.com/",
+        banner: clanarea,
+        num: 3,
     }
 ]
 
@@ -53,10 +60,16 @@ const Home = () => {
 
     useEffect(() => {
         const interval = setInterval(() => {
-            setBannerNum(prev => prev === 1 ? 2 : 1);
-        }, 8000)
-        return () => clearInterval(interval)
-    }, [])
+            setBannerNum(prev => {
+                if (prev < BANNERS.length) {
+                    return prev + 1;
+                }
+                return 1;
+            });
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <section className="min-w-0">

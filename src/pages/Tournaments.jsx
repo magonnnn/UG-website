@@ -110,13 +110,13 @@ const Tournaments = () => {
                             : [];
 
                         return (
-                            <li key={achievement.id}>
+                            <li key={achievement.id} className="bg-bg-light rounded-md p-2">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <span className="text-sm font-semibold text-white">
                                         {achievement.team_name}
                                     </span>
                                     {achievement.placement && (
-                                        <span className="text-sm font-black text-red-500">
+                                        <span className="text-sm font-black text-white">
                                             {achievement.placement}
                                         </span>
                                     )}

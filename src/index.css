@@ -40,11 +40,11 @@
     content: "";
     position: fixed;
     inset: 0;
-    background-image: url("./assets/preview-christmas-outline.png");
+    background-image: url("./assets/bg-new.png");
     background-size: cover;
     background-repeat: no-repeat;
     /* opacity: 0.75; */
-    filter: blur(2px);
+    /* filter: blur(2px); */
     pointer-events: none;
     z-index: -1;
   }

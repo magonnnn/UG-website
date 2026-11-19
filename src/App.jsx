@@ -21,6 +21,7 @@ import PrivacyPolicy from "./pages/DataInfo";
 import Tournaments from "./pages/Tournaments";
 import Announcements from "./pages/Announcements";
 import TopBar from "./components/TopBar";
+import Wyniki from "./pages/Wyniki";
 
 const ScrollToTop = () => {
   const { key } = useLocation();
@@ -69,6 +70,7 @@ const App = () => {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/tournaments" element={<Tournaments />} />
               <Route path="/announcements" element={<Announcements />} />
+              <Route path="/results" element={<Wyniki />} />
             </Routes>
           </main>
 

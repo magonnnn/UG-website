@@ -190,10 +190,10 @@ const LeftBar = () => {
             </section>
 
             <section className="overflow-hidden border border-white/10 bg-bg">
-                <h2 className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300">
+                <Link className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-300 hover:text-white transition-colors" to="/tournaments">
                     <img src={clockIcon} alt="" aria-hidden="true" className="h-4 w-4 invert opacity-60" />
                     Nadchodzące turnieje
-                </h2>
+                </Link>
                 {loading ? (
                     <p className="px-4 py-5 text-sm text-gray-400">Ładowanie turniejów...</p>
                 ) : tournamentsError ? (

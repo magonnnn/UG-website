@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { Link } from "react-router-dom";
 import Pagination from "../components/Pagination";
-import matchIcon from "../assets/match.svg";
+
 const Matches = () => {
     const [matches, setMatches] = useState([]);
     const [teams, setTeams] = useState([]);
@@ -116,32 +116,21 @@ const Matches = () => {
             });
     };
 
-    const filteredMatches = selectedTeamId
+    const teamMatches = selectedTeamId
         ? matches.filter((match) =>
             String(match.team_1?.id ?? "") === selectedTeamId ||
             String(match.team_2?.id ?? "") === selectedTeamId
         )
         : matches;
-    const activeMatches = filteredMatches.filter((match) => !match.cancelled);
-    const upcomingMatches = activeMatches
-        .filter((match) => !match.finished)
+    const filteredMatches = teamMatches.filter((match) => !match.finished && !match.cancelled);
+    const upcomingMatches = filteredMatches
         .sort((first, second) => new Date(first.time ?? 0) - new Date(second.time ?? 0));
-    const finishedMatches = activeMatches
-        .filter((match) => match.finished)
-        .sort((first, second) => new Date(second.time ?? 0) - new Date(first.time ?? 0));
-    const cancelledMatches = filteredMatches
-        .filter((match) => match.cancelled)
-        .sort((first, second) => new Date(second.time ?? 0) - new Date(first.time ?? 0));
-    const orderedMatches = [...upcomingMatches, ...finishedMatches, ...cancelledMatches];
-    const pageCount = Math.ceil(orderedMatches.length / PAGE_SIZE);
-    const pageMatches = orderedMatches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-    const pageUpcomingMatches = pageMatches.filter((match) => !match.finished && !match.cancelled);
-    const pageFinishedMatches = pageMatches.filter((match) => match.finished && !match.cancelled);
-    const pageCancelledMatches = pageMatches.filter((match) => match.cancelled);
-    const liveMatches = pageUpcomingMatches.filter((match) =>
+    const pageCount = Math.ceil(upcomingMatches.length / PAGE_SIZE);
+    const pageMatches = upcomingMatches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    const liveMatches = pageMatches.filter((match) =>
         match.team_1_score != null || match.team_2_score != null
     );
-    const scheduledMatches = pageUpcomingMatches.filter((match) =>
+    const scheduledMatches = pageMatches.filter((match) =>
         match.team_1_score == null && match.team_2_score == null
     );
 
@@ -276,22 +265,6 @@ const Matches = () => {
                                 Nadchodzące mecze
                             </h2>
                             {renderGroupedMatches(scheduledMatches)}
-                        </section>
-                    )}
-                    {pageFinishedMatches.length > 0 && (
-                        <section>
-                            <h2 className="bg-bg-light w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
-                                Zakończone mecze
-                            </h2>
-                            {renderGroupedMatches(pageFinishedMatches)}
-                        </section>
-                    )}
-                    {pageCancelledMatches.length > 0 && (
-                        <section>
-                            <h2 className="bg-bg w-fit rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">
-                                Anulowane mecze
-                            </h2>
-                            {renderGroupedMatches(pageCancelledMatches)}
                         </section>
                     )}
                 </div>
