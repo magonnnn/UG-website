@@ -30,10 +30,10 @@ const partners = [
         offer: "Serwery CS2",
     },
     {
-        name: "Bialski Turniej",
+        name: "BTE ESPORT",
         href: "https://bialskiturniej.com/",
         logo: bialski,
-        offer: "Turnieje non-profit",
+        offer: "Turnieje e-sportowe",
     }
 ];
 
