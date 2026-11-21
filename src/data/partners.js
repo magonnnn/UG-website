@@ -31,7 +31,7 @@ const partners = [
     },
     {
         name: "Bialski Turniej",
-        href: "https://www.bialskiturniej.pl/",
+        href: "https://bialskiturniej.com/",
         logo: bialski,
         offer: "Turnieje non-profit",
     }
