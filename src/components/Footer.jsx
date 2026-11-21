@@ -33,7 +33,7 @@ const Footer = () => {
                     <a href="https://x.com/PODZIEMIECS2" target="_blank" rel="noopener noreferrer" className="text-gray-400 transition-colors hover:text-white">
                         X
                     </a>
-                    <a href="https://discord.gg/5Aa8bCPhg" target="_blank" rel="noopener noreferrer" className="text-gray-400 transition-colors hover:text-white">
+                    <a href="https://discord.gg/gmzvuKsQd3" target="_blank" rel="noopener noreferrer" className="text-gray-400 transition-colors hover:text-white">
                         Discord
                     </a>
                     <p>

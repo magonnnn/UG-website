@@ -1,7 +1,7 @@
 import refrag from "../assets/refrag.jpg";
 import clanarea from "../assets/clanarea.jpg";
 import undergrow from "../assets/undergrow.jpg";
-import dreammachines from "../assets/dreammachines.jpg";
+import bialski from "../assets/bialski.jpg";
 import fragujemy from "../assets/fragujemy.jpg";
 
 const partners = [
@@ -28,6 +28,12 @@ const partners = [
         href: "https://fragujemy.com/",
         logo: fragujemy,
         offer: "Serwery CS2",
+    },
+    {
+        name: "Bialski Turniej",
+        href: "https://www.bialskiturniej.pl/",
+        logo: bialski,
+        offer: "Turnieje non-profit",
     }
 ];
 

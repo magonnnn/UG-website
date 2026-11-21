@@ -67,7 +67,7 @@ const Article = () => {
     const hasRichContent = /<\/?(p|h[1-6]|ul|ol|li|strong|em|a|blockquote|img|br)\b/i.test(article.content);
 
     return (
-        <article className="mx-auto min-w-0 max-w-4xl">
+        <article className="min-w-0">
             <Link
                 to="/"
                 className="mb-5 flex items-center gap-2 text-sm text-red-300 hover:text-red-200"

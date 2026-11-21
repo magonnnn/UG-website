@@ -9,9 +9,9 @@ import PartnerCard from "../components/PartnerCard";
 import partners from "../data/partners";
 import CoachBadge from "../components/CoachBadge";
 
-const reducedPartners = partners.filter((elem, index) => {
-    return index < 3;
-})
+const reducedPartners = [...partners]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3);
 
 const getLogoUrl = (logo) => {
     if (!logo) return null;

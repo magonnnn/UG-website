@@ -318,6 +318,7 @@ const AdminPanel = () => {
         void Promise.resolve().then(loadTeams);
     }, [loadTeams]);
 
+
     const loadPlayers = useCallback(async () => {
         const { data, error } = await supabase
             .from("players")
