@@ -3,6 +3,7 @@ import clanarea from "../assets/clanarea.jpg";
 import undergrow from "../assets/undergrow.jpg";
 import bialski from "../assets/bialski.jpg";
 import fragujemy from "../assets/fragujemy.jpg";
+import clutchpoint from "../assets/cp-partner.jpg";
 
 const partners = [
     {
@@ -33,6 +34,12 @@ const partners = [
         name: "BTE ESPORT",
         href: "https://bialskiturniej.com/",
         logo: bialski,
+        offer: "Turnieje e-sportowe",
+    },
+    {
+        name: "ClutchPoint",
+        href: "https://www.clutchpoint-cp.com/",
+        logo: clutchpoint,
         offer: "Turnieje e-sportowe",
     }
 ];
