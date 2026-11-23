@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import cp from "../assets/clutchpoint.png";
 import fragujemy from "../assets/fragujemy-baner.png";
 import clanarea from "../assets/clanarea-baner.png";
+import axide from "../assets/axide.png";
 
 const ARTICLE_BATCH_SIZE = 4;
 const BANNERS = [
@@ -24,6 +25,12 @@ const BANNERS = [
         link: "https://clanarea.com/",
         banner: clanarea,
         num: 3,
+    },
+    {
+        name: "Axide",
+        link: "https://axide.pl/",
+        banner: axide,
+        num: 4,
     }
 ]
 
