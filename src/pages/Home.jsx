@@ -5,6 +5,7 @@ import cp from "../assets/clutchpoint.png";
 import fragujemy from "../assets/fragujemy-baner.png";
 import clanarea from "../assets/clanarea-baner.png";
 import axide from "../assets/axide.png";
+import bte from "../assets/bte-baner.png";
 
 const ARTICLE_BATCH_SIZE = 4;
 const BANNERS = [
@@ -31,6 +32,12 @@ const BANNERS = [
         link: "https://axide.pl/",
         banner: axide,
         num: 4,
+    },
+    {
+        name: "BTE Esport",
+        link: "https://bialskiturniej.com/",
+        banner: bte,
+        num: 5,
     }
 ]
 
